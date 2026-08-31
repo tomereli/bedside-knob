@@ -1,0 +1,26 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Idle — bedside knob, design A</title>
+<link rel="stylesheet" href="face.css">
+<div class="wrap">
+  <h1>01 — Idle</h1>
+  <p class="note">20 seconds after the last touch or detent. The backlight has faded to
+  zero over 1000 ms and LVGL is paused. There is no clock, no glyph, no dim ring.
+  The screen sits 150 mm from a sleeping face; anything lit here is light pollution.</p>
+
+  <div class="stage">
+    <div class="face night"></div>
+    <div class="cap">
+      <p class="t">Nothing. Black.</p>
+      <p class="d">This is also the only moment the device holds no state. The target is
+      BED, and that is true because the screen is dark — not because a timer reset it.
+      <b style="color:#8a7050">When the glass is dark, the knob is the bed light.</b>
+      That invariant is the whole design.</p>
+      <p class="g">A turn wakes the screen <em>and</em> dims, on the same motion — the
+      first detent is a real detent, and the light moves before the backlight has
+      finished coming up. A touch wakes and is live immediately. There is no guard
+      window and no free first click: the device behaves the same whether the glass was
+      lit or dark, which is one less thing to know at 3 am.</p>
+    </div>
+  </div>
+</div>

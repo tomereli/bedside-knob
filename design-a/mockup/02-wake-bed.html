@@ -1,0 +1,40 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Wake — BED — bedside knob, design A</title>
+<link rel="stylesheet" href="face.css">
+<div class="wrap">
+  <h1>02 — Wake, 02:40, the bed light</h1>
+  <p class="note">A hand comes out from under the duvet and lands on the glass. The
+  screen lights at the night ceiling and shows the one thing it always shows first: how
+  bright the bed is, and that it is the bed. No mode to identify, nothing to read to
+  know what the next turn will do.</p>
+
+  <div class="stage">
+    <div class="face night">
+      <svg viewBox="0 0 360 360">
+        <circle class="arc trk" cx="180" cy="180" r="160"
+                stroke-dasharray="893.6 111.7" transform="rotate(-250 180 180)"/>
+        <circle class="arc val" cx="180" cy="180" r="160" style="stroke:#73420e"
+                stroke-dasharray="536.2 469.1" transform="rotate(-250 180 180)"/>
+      </svg>
+      <div class="a">BED</div>
+      <div class="b">60%</div>
+    </div>
+    <div class="cap">
+      <p class="t">Arc = level. Arc colour = the warmth that rides with it.</p>
+      <p class="d">Reached by touching. If the hand goes to the ring instead, this face
+      never appears — the turn wakes and dims in one motion and the first thing on the
+      glass is already the new value, at 40% or 80%. Both routes land on the same page
+      because there is only one page.</p>
+      <p class="d">The ring runs 320°, from bottom-left clockwise to bottom-right, and
+      the 40° gap at the bottom is a wall, not decoration: the value cannot wrap past it
+      and neither can the target strip. Everything on this device that can be wound has
+      an end you can feel.</p>
+      <p class="g">BED at 02:40 means <code>script.bed_strip_step</code> under its night
+      rule — his nightstand, Masha's nightstand, the under-bed strip, each addressed
+      individually, and the wave left alone. At 14:00 the same word means one multicast
+      to the ZHA group. The knob never knows the difference; that policy lives in Home
+      Assistant.</p>
+    </div>
+  </div>
+</div>

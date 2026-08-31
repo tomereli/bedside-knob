@@ -1,0 +1,42 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>AC — bedside knob, design A</title>
+<link rel="stylesheet" href="face.css">
+<div class="wrap">
+  <h1>09 — AC. The far wall of the strip.</h1>
+  <p class="note">Wind the ring clockwise with a finger down until it stops and you are
+  here, without counting and without looking. August in Tel Aviv is why this end of the
+  strip is an end and not a stop in the middle.</p>
+
+  <div class="stage">
+    <div class="face night">
+      <svg viewBox="0 0 360 360">
+        <circle class="arc trk" cx="180" cy="180" r="160"
+                stroke-dasharray="893.6 111.7" transform="rotate(-250 180 180)"/>
+        <circle class="arc val" cx="180" cy="180" r="160" style="stroke:#6e4400"
+                stroke-dasharray="606.6 398.7" transform="rotate(-250 180 180)"/>
+      </svg>
+      <div class="a">AC</div>
+      <div class="b">25.5</div>
+      <div class="c">ROOM 26 · 85M</div>
+    </div>
+    <div class="cap">
+      <p class="t">Target large. Room temperature and sleep timer small, on one line.</p>
+      <p class="d">±0.5 °C per detent on <code>climate.bedroom_ac</code>, bounded 16–30,
+      and the arc spans exactly that range so the ring's two walls are 16 and 30. No
+      mode names: <code>heat_cool</code>, <code>dry</code> and <code>fan_only</code> are
+      app decisions, not 3 am decisions. If the AC is off, the face reads
+      <b>AC / OFF</b> and the first detent turns it on in <code>cool</code> at its last
+      target rather than nudging a setpoint nothing is chasing.</p>
+      <p class="d">Hold 1 s restarts <code>timer.mbr_ac_countdown</code> from
+      <code>input_number.mbr_ac_timer_minutes</code> — 85 minutes, the "let it run a bit
+      longer" gesture. <b style="color:#8a7050">There is no AC-off gesture on this
+      knob.</b> Turning the AC off by accident on a 34 °C night is the worst thing this
+      device could do to him, and the timer already is the off switch.</p>
+      <p class="g"><code>ROOM 26 · 85M</code> is 13 characters at 28 px; the chord at
+      y = +80 allows about 15. When the timer is not running the line reads
+      <code>ROOM 26</code> and the space stays empty rather than filling with something
+      else.</p>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,29 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Wake — front door unlocked — bedside knob, design A</title>
+<link rel="stylesheet" href="face.css">
+<div class="wrap">
+  <h1>03 — Wake, and the front door is not locked</h1>
+  <p class="note">The only thing allowed to come before the value. It takes the face on
+  wake, for 2 seconds or until the next gesture, then the face becomes 02. It is a
+  statement, not a control: nothing on this device can operate
+  <code>lock.main_door</code>, which supports <code>OPEN</code> and nothing else.</p>
+
+  <div class="stage">
+    <div class="face night">
+      <div class="a warn">FRONT DOOR</div>
+      <div class="b warn">UNLOCKED</div>
+    </div>
+    <div class="cap">
+      <p class="t">Red, no arc, no gesture attached.</p>
+      <p class="d">There is no ring because there is nothing to set. It does not have to
+      be dismissed — a turn dims the bed and takes the face with it, a tap returns to
+      BED. Nothing is queued behind it and no gesture is eaten by it. If the hand was
+      already turning when it appeared, it never appears at all.</p>
+      <p class="g">8 characters at 60 px fits inside the 9-character chord at y = 0.
+      <code>#800000</code>: red preserves dark adaptation and carries no blue.
+      This is the only screen in the set that reports a fact about the house rather
+      than a value under the hand, and it is the only one worth waking someone for.</p>
+    </div>
+  </div>
+</div>

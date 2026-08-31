@@ -1,0 +1,36 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Light adjusting — bedside knob, design A</title>
+<link rel="stylesheet" href="face.css">
+<div class="wrap">
+  <h1>04 — Turning. One detent up.</h1>
+  <p class="note">The ring moved one click clockwise. The number and the arc repainted
+  inside 120 ms from a locally predicted value; <code>script.bed_strip_step</code> was
+  called with a step of +20 points and Home Assistant will report back what it actually
+  set. Nothing else on the face changed, because there is nothing else on the face.</p>
+
+  <div class="stage">
+    <div class="face night">
+      <svg viewBox="0 0 360 360">
+        <circle class="arc trk" cx="180" cy="180" r="160"
+                stroke-dasharray="893.6 111.7" transform="rotate(-250 180 180)"/>
+        <circle class="arc val" cx="180" cy="180" r="160" style="stroke:#7a5113"
+                stroke-dasharray="714.9 290.4" transform="rotate(-250 180 180)"/>
+      </svg>
+      <div class="a">BED</div>
+      <div class="b">80%</div>
+    </div>
+    <div class="cap">
+      <p class="t">Two things repaint. Never a page.</p>
+      <p class="d">Every stop on this device — bed, a single lamp, music, the AC —
+      draws the same page: one ring, one 28 px name, one 60 px value, one optional
+      28 px fact. A detent therefore never rebuilds a layout, which is what makes the
+      120 ms budget reachable rather than aspirational.</p>
+      <p class="g">The arc has warmed from <code>#73420e</code> at 60% toward
+      <code>#7a5113</code> at 80% — the amber ramp standing in for 2000 K → 4000 K,
+      because the real colour at the top of that curve is a near-white with blue in it
+      and this panel is a white backlight behind a filter. Magnitude is carried by arc
+      <em>length</em>; the colour is a hint, not the readout.</p>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,48 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Target selection — bedside knob, design A</title>
+<link rel="stylesheet" href="face.css">
+<div class="wrap">
+  <h1>05 — Finger down on the glass, ring wound two clicks</h1>
+  <p class="note">This is the only way a target is ever chosen, and it exists only while
+  a finger is on the glass. Touch and hold still: after 250 ms the ring becomes the map
+  below, so the map is discovered by touching rather than by remembering. Turn while
+  touching: you walk the strip, one haptic click per stop. Lift: that stop is what the
+  ring now controls.</p>
+
+  <div class="stage">
+    <div class="face night">
+      <svg viewBox="0 0 360 360">
+        <!-- 9 stops on a 320 arc; the 40 gap at the bottom is the wall -->
+        <line class="tick home" x1="134.85" y1="304.04" x2="123.22" y2="335.99"/><!-- BED -->
+        <line class="tick"      x1="53.56"  y1="253.00" x2="36.24"  y2="263.00"/><!-- ME -->
+        <line class="tick on"   x1="36.22"  y1="154.65" x2="16.52"  y2="151.17"/><!-- MASHA -->
+        <line class="tick"      x1="86.15"  y1="68.16"  x2="73.30"  y2="52.84"/><!-- WAVE -->
+        <line class="tick"      x1="180"    y1="34.00"  x2="180"    y2="14.00"/><!-- ALL -->
+        <line class="tick"      x1="273.85" y1="68.16"  x2="286.70" y2="52.84"/><!-- CLOSET -->
+        <line class="tick"      x1="323.78" y1="154.65" x2="343.48" y2="151.17"/><!-- BATHROOM -->
+        <line class="tick"      x1="306.44" y1="253.00" x2="323.76" y2="263.00"/><!-- MUSIC -->
+        <line class="tick home" x1="225.15" y1="304.04" x2="236.78" y2="335.99"/><!-- AC -->
+        <circle class="mark" cx="26.37" cy="152.91" r="7"/>
+      </svg>
+      <div class="b">MASHA</div>
+      <div class="c">40%</div>
+    </div>
+    <div class="cap">
+      <p class="t">The strip, from the wall clockwise:</p>
+      <p class="d" style="color:#8a7050">
+      <b>BED</b> · ME · MASHA · WAVE · ALL · CLOSET · BATHROOM · MUSIC · <b>AC</b></p>
+      <p class="d">It does not wrap. Wind anticlockwise until it stops and you are on
+      BED — always, from anywhere, in the dark, with a double haptic bump to say so.
+      Wind the other way until it stops and you are on AC. Those are the two things
+      wanted at 3 am and they are the two things you can reach without counting; the
+      other seven are counted, and they are the ones used in daylight.</p>
+      <p class="g">The name is at 60 px because during selection the name <em>is</em> the
+      value the turn is changing. Its current level sits underneath at 28 px so you know
+      what you are about to move before you move it. On release the two swap size, which
+      is the whole transition — see 06.</p>
+      <p class="g">The longer marks at the bottom are the two ends. The gap between them
+      is the wall.</p>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,273 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Bedside knob — design A — all states</title>
+<link rel="stylesheet" href="face.css">
+<div class="wrap">
+
+  <h1>Bedside knob — Design A — every state, 360 × 360, shown 1:1</h1>
+  <p class="note">
+  <b style="color:#c8a06a">The knob is always the bed light.</b> A turn changes the value
+  in front of you and that value is the bed's brightness unless the glass, right now,
+  says otherwise. A finger on the glass turns the ring into a strip of nine targets that
+  does not wrap: wind anticlockwise to the wall and you are on BED, wind clockwise to the
+  other wall and you are on AC. A tap means "back to BED" and nothing else, anywhere.
+  A hold means "I'm done with this". When the screen sleeps, everything is BED again.
+  </p>
+  <p class="note">
+  Night colours are literal: no channel above <code>0x80</code>, no blue above
+  <code>0x20</code>, background <code>#000000</code>. On a lit monitor these look darker
+  than they will feel through a dark-adapted eye at 3 am — that dimness is the design,
+  not a rendering artefact. Type is exactly 60 / 28 px; 20 px is used nowhere, and 16 px
+  does not exist.
+  </p>
+
+  <h2>The nightly path</h2>
+  <div class="grid">
+
+    <figure>
+      <div class="face night"></div>
+      <figcaption><span class="cn">01 — Idle</span>Nothing, black, backlight at zero. No clock. The one
+      moment the device holds no state at all — and the reason a dark glass always means
+      "bed light".</figcaption>
+    </figure>
+
+    <figure>
+      <div class="face night">
+        <svg viewBox="0 0 360 360">
+          <circle class="arc trk" cx="180" cy="180" r="160" stroke-dasharray="893.6 111.7" transform="rotate(-250 180 180)"/>
+          <circle class="arc val" cx="180" cy="180" r="160" style="stroke:#73420e" stroke-dasharray="536.2 469.1" transform="rotate(-250 180 180)"/>
+        </svg>
+        <div class="a">BED</div><div class="b">60%</div>
+      </div>
+      <figcaption><span class="cn">02 — Wake, 02:40</span>Touched, not turned. The bed's level and the
+      word BED. Turning instead would have skipped this frame entirely — a turn wakes and
+      dims on the same motion.</figcaption>
+    </figure>
+
+    <figure>
+      <div class="face night">
+        <svg viewBox="0 0 360 360">
+          <circle class="arc trk" cx="180" cy="180" r="160" stroke-dasharray="893.6 111.7" transform="rotate(-250 180 180)"/>
+          <circle class="arc val" cx="180" cy="180" r="160" style="stroke:#7a5113" stroke-dasharray="714.9 290.4" transform="rotate(-250 180 180)"/>
+        </svg>
+        <div class="a">BED</div><div class="b">80%</div>
+      </div>
+      <figcaption><span class="cn">04 — One detent up</span>Number and arc repaint; nothing else exists to
+      repaint. <code>script.bed_strip_step</code>, +20 points, arc warms along the amber
+      ramp.</figcaption>
+    </figure>
+
+    <figure>
+      <div class="face night">
+        <svg viewBox="0 0 360 360">
+          <circle class="arc trk" cx="180" cy="180" r="160" stroke-dasharray="893.6 111.7" transform="rotate(-250 180 180)"/>
+          <circle class="arc" cx="180" cy="180" r="160" style="stroke:#805000" stroke-dasharray="297.9 1005" transform="rotate(-250 180 180)"/>
+          <circle class="arc" cx="180" cy="180" r="160" style="stroke:#805000" stroke-dasharray="116.7 1005" transform="rotate(-139 180 180)"/>
+        </svg>
+        <div class="a">GOOD NIGHT</div><div class="b">ROOM</div>
+      </div>
+      <figcaption><span class="cn">07 — Held 1.4 s</span>Past the first break, so release runs the room
+      goodnight. Close the arc to the wall at 3 s and the house follows. Released before
+      the break: nothing was called.</figcaption>
+    </figure>
+
+  </div>
+
+  <h2>Choosing something other than the bed</h2>
+  <div class="grid">
+
+    <figure>
+      <div class="face night">
+        <svg viewBox="0 0 360 360">
+          <line class="tick home" x1="134.85" y1="304.04" x2="123.22" y2="335.99"/>
+          <line class="tick"      x1="53.56"  y1="253.00" x2="36.24"  y2="263.00"/>
+          <line class="tick on"   x1="36.22"  y1="154.65" x2="16.52"  y2="151.17"/>
+          <line class="tick"      x1="86.15"  y1="68.16"  x2="73.30"  y2="52.84"/>
+          <line class="tick"      x1="180"    y1="34.00"  x2="180"    y2="14.00"/>
+          <line class="tick"      x1="273.85" y1="68.16"  x2="286.70" y2="52.84"/>
+          <line class="tick"      x1="323.78" y1="154.65" x2="343.48" y2="151.17"/>
+          <line class="tick"      x1="306.44" y1="253.00" x2="323.76" y2="263.00"/>
+          <line class="tick home" x1="225.15" y1="304.04" x2="236.78" y2="335.99"/>
+          <circle class="mark" cx="26.37" cy="152.91" r="7"/>
+        </svg>
+        <div class="b">MASHA</div><div class="c">40%</div>
+      </div>
+      <figcaption><span class="cn">05 — Finger down, two clicks along</span>The ring becomes the strip
+      after 250 ms of contact, so the map is found by touching, not remembered.
+      <b>BED</b> · ME · MASHA · WAVE · ALL · CLOSET · BATHROOM · MUSIC · <b>AC</b>. It
+      does not wrap; the gap at the bottom is the wall.</figcaption>
+    </figure>
+
+    <figure>
+      <div class="face night">
+        <svg viewBox="0 0 360 360">
+          <circle class="arc trk" cx="180" cy="180" r="160" stroke-dasharray="893.6 111.7" transform="rotate(-250 180 180)"/>
+          <circle class="arc val" cx="180" cy="180" r="160" style="stroke:#6d3309" stroke-dasharray="357.4 647.9" transform="rotate(-250 180 180)"/>
+        </svg>
+        <div class="a">MASHA</div><div class="b">40%</div>
+      </div>
+      <figcaption><span class="cn">06 — Lifted on MASHA</span>Name and value swap sizes; the page is
+      otherwise identical to 02. Stays hers only while the glass is lit and saying so —
+      sleep, or one tap, and it is BED again.</figcaption>
+    </figure>
+
+    <figure>
+      <div class="face night">
+        <svg viewBox="0 0 360 360">
+          <circle class="arc trk" cx="180" cy="180" r="160" stroke-dasharray="893.6 111.7" transform="rotate(-250 180 180)"/>
+          <circle class="arc val" cx="180" cy="180" r="160" style="stroke:#6e4400" stroke-dasharray="336.4 668.9" transform="rotate(-250 180 180)"/>
+        </svg>
+        <div class="a">MUSIC</div><div class="b">32</div><div class="c">NIGHTSWIMMING</div>
+      </div>
+      <figcaption><span class="cn">08 — Music</span>Volume on the WiiM, ±2 per detent, the arc's wall at
+      the 85 cap. The title is a hint, not a readout. Hold plays or pauses through
+      <code>script.room_media_smart_transport</code>.</figcaption>
+    </figure>
+
+    <figure>
+      <div class="face night">
+        <svg viewBox="0 0 360 360">
+          <circle class="arc trk" cx="180" cy="180" r="160" stroke-dasharray="893.6 111.7" transform="rotate(-250 180 180)"/>
+          <circle class="arc val" cx="180" cy="180" r="160" style="stroke:#6e4400" stroke-dasharray="606.6 398.7" transform="rotate(-250 180 180)"/>
+        </svg>
+        <div class="a">AC</div><div class="b">25.5</div><div class="c">ROOM 26 · 85M</div>
+      </div>
+      <figcaption><span class="cn">09 — AC</span>The far wall of the strip: wind clockwise until it stops
+      and you are here, no counting. ±0.5 °C, 16–30. Hold restarts the 85-minute sleep
+      timer. There is no AC-off gesture.</figcaption>
+    </figure>
+
+  </div>
+
+  <h2>The states that are usually skipped</h2>
+  <div class="grid">
+
+    <figure>
+      <div class="face night">
+        <div class="a warn">FRONT DOOR</div><div class="b warn">UNLOCKED</div>
+      </div>
+      <figcaption><span class="cn">03 — Door not locked, on wake</span>The only thing allowed in front of
+      the value. Two seconds or until the next gesture. Status only — nothing here can
+      operate the lock.</figcaption>
+    </figure>
+
+    <figure>
+      <div class="face night">
+        <svg viewBox="0 0 360 360">
+          <circle class="arc trk" cx="180" cy="180" r="160" stroke-dasharray="893.6 111.7" transform="rotate(-250 180 180)"/>
+          <circle class="arc" cx="180" cy="180" r="160" style="stroke:#241500" stroke-dasharray="536.2 469.1" transform="rotate(-250 180 180)"/>
+          <circle class="dot" cx="180" cy="330" r="5"/>
+        </svg>
+        <div class="a warn">OFFLINE</div><div class="b stale">60%</div>
+      </div>
+      <figcaption><span class="cn">10 — Home Assistant unreachable</span>Lit and inert, and honest about
+      it. Last known value greyed, a red dot that persists, and a long buzz instead of a
+      click on every refused detent.</figcaption>
+    </figure>
+
+    <figure>
+      <div class="face night">
+        <svg viewBox="0 0 360 360">
+          <circle class="arc trk" cx="180" cy="180" r="160" stroke-dasharray="893.6 111.7" transform="rotate(-250 180 180)"/>
+          <circle class="arc val" cx="180" cy="180" r="160" style="stroke:#6e4400" stroke-dasharray="252.3 753.0" transform="rotate(-250 180 180)"/>
+        </svg>
+        <div class="a">MUSIC</div><div class="b">24</div><div class="c">AIRPLAY</div>
+      </div>
+      <figcaption><span class="cn">12 — A Hebrew track title</span>Montserrat is ASCII and LVGL does not
+      shape RTL. Fall back to the source name rather than to boxes or blanks. Rendered,
+      not described.</figcaption>
+    </figure>
+
+    <figure>
+      <div class="face day">
+        <svg viewBox="0 0 360 360">
+          <circle class="arc trk" cx="180" cy="180" r="160" stroke-dasharray="893.6 111.7" transform="rotate(-250 180 180)"/>
+          <circle class="arc val" cx="180" cy="180" r="160" style="stroke:#ffcda6" stroke-dasharray="893.6 111.7" transform="rotate(-250 180 180)"/>
+        </svg>
+        <div class="a">BED</div><div class="b">100%</div>
+      </div>
+      <figcaption><span class="cn">11 — 14:00, day palette</span>White type, true colour-temperature arc,
+      backlight off the illuminance sensor. Same page, same strip, same gestures. BED now
+      means one multicast to the ZHA group.</figcaption>
+    </figure>
+
+  </div>
+
+  <h2>At the size it actually is</h2>
+  <p class="note">The glass is about 45.7 mm across. Everything above is four times
+  larger than the object on the nightstand. These three are drawn at the panel's nominal
+  physical diameter — your monitor's true scale will differ, but the proportion between
+  the 60 px number and the disc is exact, and it is the only proportion that matters.</p>
+  <div class="realsize">
+
+    <div>
+      <div class="shrink"><div class="face night">
+        <svg viewBox="0 0 360 360">
+          <circle class="arc trk" cx="180" cy="180" r="160" stroke-dasharray="893.6 111.7" transform="rotate(-250 180 180)"/>
+          <circle class="arc val" cx="180" cy="180" r="160" style="stroke:#73420e" stroke-dasharray="536.2 469.1" transform="rotate(-250 180 180)"/>
+        </svg>
+        <div class="a">BED</div><div class="b">60%</div>
+      </div></div>
+    </div>
+
+    <div>
+      <div class="shrink"><div class="face night">
+        <svg viewBox="0 0 360 360">
+          <line class="tick home" x1="134.85" y1="304.04" x2="123.22" y2="335.99"/>
+          <line class="tick"      x1="53.56"  y1="253.00" x2="36.24"  y2="263.00"/>
+          <line class="tick on"   x1="36.22"  y1="154.65" x2="16.52"  y2="151.17"/>
+          <line class="tick"      x1="86.15"  y1="68.16"  x2="73.30"  y2="52.84"/>
+          <line class="tick"      x1="180"    y1="34.00"  x2="180"    y2="14.00"/>
+          <line class="tick"      x1="273.85" y1="68.16"  x2="286.70" y2="52.84"/>
+          <line class="tick"      x1="323.78" y1="154.65" x2="343.48" y2="151.17"/>
+          <line class="tick"      x1="306.44" y1="253.00" x2="323.76" y2="263.00"/>
+          <line class="tick home" x1="225.15" y1="304.04" x2="236.78" y2="335.99"/>
+          <circle class="mark" cx="26.37" cy="152.91" r="7"/>
+        </svg>
+        <div class="b">MASHA</div><div class="c">40%</div>
+      </div></div>
+    </div>
+
+    <div>
+      <div class="shrink"><div class="face night">
+        <svg viewBox="0 0 360 360">
+          <circle class="arc trk" cx="180" cy="180" r="160" stroke-dasharray="893.6 111.7" transform="rotate(-250 180 180)"/>
+          <circle class="arc val" cx="180" cy="180" r="160" style="stroke:#6e4400" stroke-dasharray="606.6 398.7" transform="rotate(-250 180 180)"/>
+        </svg>
+        <div class="a">AC</div><div class="b">25.5</div><div class="c">ROOM 26 · 85M</div>
+      </div></div>
+    </div>
+
+  </div>
+
+  <h2>The whole grammar, on one line each</h2>
+  <p class="note">
+  <b style="color:#c8a06a">Turn</b> — changes the value in front of you. Wakes and acts on
+  the same motion.<br>
+  <b style="color:#c8a06a">Touch and turn</b> — walks the nine-stop strip. Anticlockwise
+  to the wall is BED; clockwise to the wall is AC.<br>
+  <b style="color:#c8a06a">Tap</b> — back to BED. Calls no service, from any state, at any
+  time.<br>
+  <b style="color:#c8a06a">Hold</b> — "I'm done with this": goodnight on BED, off on a
+  single lamp, play/pause on MUSIC, restart the sleep timer on AC.<br>
+  One finger down has exactly three futures — turn to choose, lift to go home, stay still
+  to commit — and which one you are in is on the glass the whole time.
+  </p>
+
+  <p class="note" style="margin-top:32px">
+  Individual states, each with its argument:
+  <a style="color:#8a7050" href="01-idle.html">01</a> ·
+  <a style="color:#8a7050" href="02-wake-bed.html">02</a> ·
+  <a style="color:#8a7050" href="03-door-unlocked.html">03</a> ·
+  <a style="color:#8a7050" href="04-light-adjusting.html">04</a> ·
+  <a style="color:#8a7050" href="05-target-select.html">05</a> ·
+  <a style="color:#8a7050" href="06-target-armed.html">06</a> ·
+  <a style="color:#8a7050" href="07-hold-goodnight.html">07</a> ·
+  <a style="color:#8a7050" href="08-music.html">08</a> ·
+  <a style="color:#8a7050" href="09-climate.html">09</a> ·
+  <a style="color:#8a7050" href="10-offline.html">10</a> ·
+  <a style="color:#8a7050" href="11-day-bed.html">11</a> ·
+  <a style="color:#8a7050" href="12-music-unrenderable.html">12</a>
+  </p>
+
+</div>

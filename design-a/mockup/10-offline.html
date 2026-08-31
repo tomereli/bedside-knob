@@ -1,0 +1,38 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Home Assistant unreachable — bedside knob, design A</title>
+<link rel="stylesheet" href="face.css">
+<div class="wrap">
+  <h1>10 — Home Assistant unreachable</h1>
+  <p class="note">The knob is lit and inert. That is inherent to the architecture — every
+  action is one script call — and the honest thing to do is say so rather than build a
+  local path to the lights that would drift out of step with the dimming policy.</p>
+
+  <div class="stage">
+    <div class="face night">
+      <svg viewBox="0 0 360 360">
+        <circle class="arc trk" cx="180" cy="180" r="160"
+                stroke-dasharray="893.6 111.7" transform="rotate(-250 180 180)"/>
+        <circle class="arc" cx="180" cy="180" r="160" style="stroke:#241500"
+                stroke-dasharray="536.2 469.1" transform="rotate(-250 180 180)"/>
+        <circle class="dot" cx="180" cy="330" r="5"/>
+      </svg>
+      <div class="a warn">OFFLINE</div>
+      <div class="b stale">60%</div>
+    </div>
+    <div class="cap">
+      <p class="t">The name slot says it. The value goes grey. The dot stays.</p>
+      <p class="d">No modal, nothing to dismiss. The last known level is still drawn,
+      dimmed to <code>#3a2400</code>, because it is still probably true — it is just no
+      longer being confirmed.</p>
+      <p class="d">Gestures are not silently absorbed. A detent produces a single long
+      buzz instead of a click — a refusal you can tell from a confirmation with your eyes
+      shut — and the number does not move. This is the one place where the haptic
+      channel carries information the screen cannot: a hand under a duvet learns the
+      house is unreachable without opening an eye.</p>
+      <p class="g">The dot at the bottom of the disc, <code>#800000</code>, radius 5, is
+      the persistent mark. It appears on every face while the connection is down and
+      nowhere else. It is the only badge this design has.</p>
+    </div>
+  </div>
+</div>

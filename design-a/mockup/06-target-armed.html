@@ -1,0 +1,39 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Masha's lamp — bedside knob, design A</title>
+<link rel="stylesheet" href="face.css">
+<div class="wrap">
+  <h1>06 — Finger lifted on MASHA. The ring is now her lamp.</h1>
+  <p class="note">Identical page to 02 and 04 — same ring, same two slots — with a
+  different word in the name slot. That is the point: there is no second screen to
+  learn, and no mode indicator, because the name <em>is</em> the mode indicator and it
+  is always there.</p>
+
+  <div class="stage">
+    <div class="face night">
+      <svg viewBox="0 0 360 360">
+        <circle class="arc trk" cx="180" cy="180" r="160"
+                stroke-dasharray="893.6 111.7" transform="rotate(-250 180 180)"/>
+        <circle class="arc val" cx="180" cy="180" r="160" style="stroke:#6d3309"
+                stroke-dasharray="357.4 647.9" transform="rotate(-250 180 180)"/>
+      </svg>
+      <div class="a">MASHA</div>
+      <div class="b">40%</div>
+    </div>
+    <div class="cap">
+      <p class="t">How long does it stay hers?</p>
+      <p class="d">As long as the glass is lit and saying so. There is no separate
+      target timeout, because a second timer would be a second thing to model. The
+      screen sleeps 20 s after the last input, and sleeping <em>is</em> the reset: the
+      target goes back to BED with it. State is allowed to exist only while it is
+      legible on the glass.</p>
+      <p class="d">Impatient version: one tap. A tap anywhere, at any time, calls no
+      service and means exactly one thing — <b style="color:#8a7050">back to BED</b>.
+      A half-asleep hand mashing the glass cannot change anything in the house.</p>
+      <p class="g">Turning here calls <code>script.bed_strip_step</code> with
+      <code>target: masha</code> → <code>light.left_nightstand</code>, ±20 points,
+      the 5% floor and the never-switch-off rule applying exactly as they do to BED,
+      because they live in the same script.</p>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,39 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Music, Hebrew title — bedside knob, design A</title>
+<link rel="stylesheet" href="face.css">
+<div class="wrap">
+  <h1>12 — MUSIC, and the title cannot be drawn</h1>
+  <p class="note">The ugly state, rendered rather than described. Montserrat carries
+  ASCII only, and LVGL does not shape right-to-left text. A Hebrew track title is not a
+  font problem with a workaround — it is a row of empty boxes, or a mangled line, unless
+  something decides not to draw it.</p>
+
+  <div class="stage">
+    <div class="face night">
+      <svg viewBox="0 0 360 360">
+        <circle class="arc trk" cx="180" cy="180" r="160"
+                stroke-dasharray="893.6 111.7" transform="rotate(-250 180 180)"/>
+        <circle class="arc val" cx="180" cy="180" r="160" style="stroke:#6e4400"
+                stroke-dasharray="252.3 753.0" transform="rotate(-250 180 180)"/>
+      </svg>
+      <div class="a">MUSIC</div>
+      <div class="b">24</div>
+      <div class="c">AIRPLAY</div>
+    </div>
+    <div class="cap">
+      <p class="t">Fall back to the source. Never to boxes, never to blanks.</p>
+      <p class="d">If the title has characters outside the compiled font, the slot shows
+      the source name instead. The user learns nothing false, the line still says
+      something true, and the screen does not develop a dead spot. The coffee knob does
+      the same thing for a bean it cannot render.</p>
+      <p class="d">This slot is optional by design, which is why the fallback is cheap.
+      It is the only place on the device where content arrives from outside the house's
+      own vocabulary, and the only place a string can be arbitrarily long. Everything
+      else on the glass is a number or one of nine fixed words.</p>
+      <p class="g">Written at runtime, so it carries <code>width:</code> and
+      <code>long_mode: DOTS</code> — a label without both is one long line running off
+      both edges of the disc, and nothing in the toolchain says so.</p>
+    </div>
+  </div>
+</div>

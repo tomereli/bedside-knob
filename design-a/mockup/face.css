@@ -1,0 +1,113 @@
+/* Bedside knob — design A face styles.
+   360 x 360 round panel, rendered 1:1. Every colour here is a literal
+   RGB565-safe value. In .night no channel exceeds 0x80 and no blue
+   channel exceeds 0x20. Background is #000000 on every screen. */
+
+:root {
+  --page: #0d0d0d;
+  --edge: #1c1c1c;
+  --ink:  #9a9a9a;
+  --ink2: #5f5f5f;
+  --rule: #202020;
+}
+
+html, body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { padding: 40px; }
+
+h1 {
+  font-size: 15px; font-weight: 600; letter-spacing: .02em;
+  color: #d0d0d0; margin: 0 0 6px;
+}
+h2 {
+  font-size: 12px; font-weight: 600; letter-spacing: .12em;
+  text-transform: uppercase; color: #7a7a7a;
+  margin: 44px 0 18px; padding-bottom: 8px;
+  border-bottom: 1px solid var(--rule);
+}
+p.note {
+  font-size: 12.5px; line-height: 1.6; color: var(--ink2);
+  margin: 0 0 26px; max-width: 560px;
+}
+code { font-family: ui-monospace, Consolas, monospace; color: #8a7050; }
+
+/* ---------- the panel ---------- */
+
+.face {
+  position: relative;
+  width: 360px; height: 360px;
+  border-radius: 50%;
+  background: #000000;
+  box-shadow: 0 0 0 1px var(--edge), 0 0 70px rgba(0,0,0,.95);
+  font-family: 'Montserrat', 'Segoe UI', system-ui, sans-serif;
+  font-weight: 500;
+  overflow: hidden;
+  flex: none;
+}
+.face svg { position: absolute; inset: 0; width: 360px; height: 360px; }
+.face circle.arc { fill: none; stroke-width: 8; }
+.face line.tick  { stroke-width: 4; stroke-linecap: butt; }
+
+/* three text slots, and there are only three */
+.a, .b, .c {
+  position: absolute; left: 0; width: 360px;
+  text-align: center; white-space: nowrap;
+}
+.a { top: 102px; transform: translateY(-50%); font-size: 28px; line-height: 34px; letter-spacing: 2px; }
+.b { top: 180px; transform: translateY(-50%); font-size: 60px; line-height: 73px; }
+.c { top: 260px; transform: translateY(-50%); font-size: 28px; line-height: 34px; letter-spacing: 2px; }
+
+/* ---------- night palette (22:00–06:00, and the default) ---------- */
+
+.night .a   { color: #5e3a00; }
+.night .b   { color: #805000; }
+.night .c   { color: #5e3a00; }
+.night .trk  { stroke: #241500; }
+.night .val  { stroke: #73420e; }
+.night .tick      { stroke: #3a2300; }
+.night .tick.home { stroke: #5e3a00; }
+.night .tick.on   { stroke: #805000; }
+.night .mark { fill: #805000; }
+.night .warn  { color: #800000; }
+.night .stale { color: #3a2400; }
+.night .dot   { fill: #800000; }
+
+/* ---------- day palette (06:00–22:00) ---------- */
+
+.day .a  { color: #b4b4b4; }
+.day .b  { color: #ffffff; }
+.day .c  { color: #b4b4b4; }
+.day .trk { stroke: #303030; }
+.day .val { stroke: #ffcda6; }
+
+/* ---------- page furniture (never on the glass) ---------- */
+
+.stage { display: flex; align-items: flex-start; gap: 34px; }
+.cap { max-width: 420px; padding-top: 4px; }
+.cap .t { font-size: 13px; font-weight: 600; color: #d0d0d0; margin: 0 0 8px; }
+.cap .d { font-size: 12.5px; line-height: 1.6; color: var(--ink2); margin: 0 0 10px; }
+.cap .g { font-size: 11.5px; line-height: 1.6; color: #6f5a3c; margin: 0; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 360px));
+  gap: 40px 46px;
+  justify-content: start;
+}
+figure { margin: 0; }
+figcaption {
+  margin-top: 14px; width: 360px;
+  font-size: 12.5px; line-height: 1.55; color: var(--ink2);
+}
+figcaption .cn { color: #b8b8b8; font-weight: 600; display: block; margin-bottom: 3px; }
+figcaption b { color: #c8a06a; font-weight: 600; }
+
+.realsize { display: flex; gap: 44px; align-items: flex-start; }
+.shrink { width: 173px; height: 173px; overflow: hidden; }
+.shrink .face { transform: scale(.4805); transform-origin: 0 0; }

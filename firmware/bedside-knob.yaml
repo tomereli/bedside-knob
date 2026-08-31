@@ -1,0 +1,1595 @@
+# =============================================================================
+# bedside-knob - Waveshare ESP32-S3-Knob-Touch-LCD-1.8 / Guition JC3636K518C
+#
+# PROVENANCE - the hardware half of this file is verbatim from the working
+# coffee-knob on identical hardware (github.com/tomereli/coffee-knob), which
+# took it from KrX3D/WaveShare-Knob-Esp32S3 @ 5e22f98 and cross-checked it
+# against the board schematic. No pin is invented here. The UI architecture
+# is the coffee knob's: one fully-styled LVGL page per card, paint before
+# show, arc indicator recoloured at runtime.
+#   Display QSPI: CLK 13, D0-3 15/16/17/18, CS 14, RST 21   (ST77916)
+#   Touch  I2C:   SDA 11, SCL 12, INT 9, RST 10             (CST816 @ 0x15)
+#   Haptic I2C:   same bus, DRV2605 @ 0x5A, EN strapped 3V3, TRIG to GND
+#   Knob EC1:     A GPIO8, B GPIO7  (EC2 is on the OTHER MCU - not used)
+#   Backlight:    GPIO47 (PWM)
+#
+# INTERACTION - two levels.
+#
+#   TOP        turn    AC - FAN - LIGHTS - MUSIC - CLOSET - BATH, wrapping
+#              tap     AC/FAN/MUSIC: enter SET       LIGHTS: open the zones
+#                      CLOSET/BATH: toggle the relay
+#              hold    AC/FAN: power    LIGHTS: whole room on/off
+#                      MUSIC: play/pause    CLOSET/BATH: refusal buzz
+#
+#   ZONES      turn    BACK - ALL - WAVE - BED - TOMER - MASHA, wrapping
+#              tap     BACK: up one level    a zone: enter SET
+#              hold    a zone: that light on/off
+#
+#   SET        the ring and the number turn white; a turn changes the value
+#              on the spot, no confirmation. A slow turn steps 1%, a fast
+#              spin accelerates to 5% - precision when wanted, reach when
+#              not. Tap or six idle seconds leaves SET.
+#
+#   A tap on a dark screen only wakes, and for 400 ms after the backlight
+#   comes up taps are wake-only. Turns are never guarded. Sleep returns the
+#   knob to the top level, so it is never found deep in a menu.
+#
+#   Every value paints locally on the detent that moved it; Home Assistant
+#   is told afterwards and never waited on. Every action goes straight to
+#   the entity. No script.*, no automations.
+# =============================================================================
+
+substitutions:
+  ac_ent:     climate.bedroom_ac
+  fan_ent:    fan.master_bedroom_ceiling_fan
+  all_ent:    light.home_assistant_connect_zbt_2_bedroom_led_strips
+  wave_ent:   light.tzb210_ue01a0s2_ts0502b_3
+  beds_ent:   light.tzb210_ue01a0s2_ts0502b
+  tomer_ent:  light.tzb210_ue01a0s2_ts0502b_2
+  masha_ent:  light.left_nightstand
+  music_ent:  media_player.master_bedroom_master_bedroom_wiim
+  closet_sw:  switch.khdr_shynh_rshy_khdr_rvnvt
+  bath_sw:    switch.khdr_rkhtsh_rshy_kh_rkhtsh_rshy_ml
+  # The Vitrea panel's own Good Night key; the screen follows it instead of
+  # a hard-coded hour.
+  goodnight_sw: switch.khdr_shynh_rshy_n2_6
+  screen_timeout: 20s
+  wake_guard_ms: "400"
+  # DRV2605 library-6 effects. Short clicks only - the buzz effects are what
+  # made the first build rattle.
+  fx_detent: "9"    # Soft Bump 30%
+  fx_set:    "5"    # Sharp Click 60%
+  fx_power:  "4"    # Sharp Click 100%
+  fx_out:    "6"    # Sharp Click 30%
+  fx_refuse: "13"   # Soft Fuzz 60%
+
+esphome:
+  name: bedside-knob
+  friendly_name: "Bedside Knob"
+  comment: "Nightstand knob - AC, fan, lights, music"
+  platformio_options:
+    board_build.flash_mode: dio
+    board_build.f_flash: 80000000L
+    board_build.f_cpu: 240000000L
+  on_boot:
+    - priority: -100
+      then:
+        - delay: 2s
+        - script.execute: haptic_init
+        - script.execute: screentime
+        - script.execute: paint_ac
+
+esp32:
+  board: esp32-s3-devkitc-1
+  flash_size: 16MB
+  cpu_frequency: 240MHz
+  framework:
+    type: esp-idf
+    sdkconfig_options:
+      CONFIG_ESP32S3_DEFAULT_CPU_FREQ_240: "y"
+      CONFIG_ESP32S3_DATA_CACHE_64KB: "y"
+      CONFIG_ESP32S3_DATA_CACHE_LINE_64B: "y"
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+logger:
+  level: DEBUG
+
+api:
+  on_client_connected:
+    - delay: 2s
+    - script.execute: paint_all
+
+ota:
+  - platform: esphome
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+# --- Display: ST77916 over QSPI ---
+spi:
+  id: display_qspi
+  type: quad
+  clk_pin: 13
+  data_pins: [15, 16, 17, 18]
+
+display:
+  - platform: mipi_spi
+    id: main_display
+    model: JC3636W518V2
+    data_rate: 80MHz
+    color_order: rgb
+    rotation: 0
+    cs_pin: 14
+    reset_pin: 21
+    invert_colors: true
+    auto_clear_enabled: false
+    update_interval: never
+    dimensions:
+      height: 360
+      width: 360
+
+i2c:
+  sda: 11
+  scl: 12
+  scan: true
+  id: ic_bus
+
+touchscreen:
+  - platform: cst816
+    id: my_touchscreen
+    display: main_display
+    interrupt_pin: GPIO9
+    reset_pin: GPIO10
+    transform:
+      mirror_x: false
+      mirror_y: false
+      swap_xy: false
+    # LVGL is paused while the glass is dark and sees nothing, so waking on
+    # touch has to happen here, below it.
+    on_touch:
+      - if:
+          condition:
+            lambda: 'return !id(screen_on);'
+          then:
+            - script.execute: screentime
+            - script.execute: show_page
+
+output:
+  - platform: ledc
+    pin: GPIO47
+    id: backlight_pwm
+
+light:
+  - platform: monochromatic
+    output: backlight_pwm
+    name: "Display Backlight"
+    icon: "mdi:television"
+    entity_category: config
+    id: back_light
+    restore_mode: ALWAYS_OFF
+    default_transition_length:
+      milliseconds: 30
+    on_turn_off:
+      # Sleep is also the way out of every menu: the knob always wakes at
+      # the top, on the page it fell asleep near, never deep in a list.
+      - lambda: |-
+          id(screen_on) = false;
+          id(ui_adjust) = false;
+          id(ui_level) = 0;
+      - lvgl.pause:
+          show_snow: false
+    on_turn_on:
+      - lambda: |-
+          id(screen_on) = true;
+          id(wake_ms) = millis();
+      - lvgl.resume:
+
+# Fetched at COMPILE time and baked in; nothing loads at runtime. Montserrat
+# Medium because Regular reads thin at 60 px on a dark panel. MDI glyphs are
+# literal characters - never escapes - per the flashing notes in HARDWARE.md.
+font:
+  - file: "gfonts://Montserrat@500"
+    id: value_60
+    size: 60
+  - file: "gfonts://Montserrat@500"
+    id: label_28
+    size: 28
+  - file: "https://raw.githubusercontent.com/Templarian/MaterialDesign-Webfont/master/fonts/materialdesignicons-webfont.ttf"
+    id: mdi_44
+    size: 44
+    bpp: 4
+    glyphs:
+      - "󰜗"
+      - "󱞗"
+      - "󱁑"
+      - "󰝚"
+      - "󰾑"
+      - "󰦡"
+      - "󰁍"
+
+external_components:
+  - source:
+      type: git
+      url: https://github.com/KrX3D/WaveShare-Knob-Esp32S3
+      ref: 5e22f98908f758e38f6412e021554d90234bb5ff
+    components: [rotary_encoder_custom]
+
+globals:
+  # Top level: 0 AC, 1 FAN, 2 LIGHTS, 3 MUSIC, 4 CLOSET, 5 BATH
+  - id: ui_page
+    type: int
+    restore_value: false
+    initial_value: '0'
+  # 0 top carousel, 1 light zones
+  - id: ui_level
+    type: int
+    restore_value: false
+    initial_value: '0'
+  # Zones: 0 BACK, 1 ALL, 2 WAVE, 3 BED, 4 TOMER, 5 MASHA
+  - id: light_i
+    type: int
+    restore_value: false
+    initial_value: '1'
+  - id: ui_adjust
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+  - id: screen_on
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+  - id: wake_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+  # Values held locally so a detent moves the glass immediately; the guard
+  # window keeps a slow HA echo from dragging a number back mid-gesture.
+  - id: last_turn_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+  # Detent-to-detent gap, for acceleration in SET.
+  - id: last_step_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+  - id: ac_target
+    type: float
+    restore_value: false
+    initial_value: '24.0'
+  - id: fan_step
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: all_pct
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: wave_pct
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: beds_pct
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: tomer_pct
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: masha_pct
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: vol_pct
+    type: int
+    restore_value: false
+    initial_value: '0'
+
+sensor:
+  - platform: rotary_encoder_custom
+    name: "Knob"
+    id: knob
+    pin_a: GPIO8
+    pin_b: GPIO7
+    min_value: -30000
+    max_value: 30000
+    publish_initial_value: true
+    restore_mode: ALWAYS_ZERO
+    on_clockwise:
+      - script.execute:
+          id: knob_turn
+          delta: 1
+    on_anticlockwise:
+      - script.execute:
+          id: knob_turn
+          delta: -1
+
+  - platform: homeassistant
+    id: ha_ac_target
+    entity_id: ${ac_ent}
+    attribute: temperature
+    internal: true
+    on_value:
+      - lambda: |-
+          if (millis() - id(last_turn_ms) > 3000 && !isnan(x)) {
+            id(ac_target) = x;
+          }
+      - script.execute: paint_ac
+
+  - platform: homeassistant
+    id: ha_ac_current
+    entity_id: ${ac_ent}
+    attribute: current_temperature
+    internal: true
+    on_value:
+      - script.execute: paint_ac
+
+  - platform: homeassistant
+    id: ha_fan_pct
+    entity_id: ${fan_ent}
+    attribute: percentage
+    internal: true
+    on_value:
+      - lambda: |-
+          if (millis() - id(last_turn_ms) > 3000 && !isnan(x)) {
+            id(fan_step) = (int) lroundf(x / 16.6667f);
+          }
+      - script.execute: paint_fan
+
+  - platform: homeassistant
+    id: ha_all_bri
+    entity_id: ${all_ent}
+    attribute: brightness
+    internal: true
+    on_value:
+      - lambda: |-
+          if (millis() - id(last_turn_ms) > 3000 && !isnan(x)) {
+            id(all_pct) = (int) lroundf(x * 100.0f / 255.0f);
+          }
+      - script.execute: paint_lights
+      - script.execute: paint_light
+
+  - platform: homeassistant
+    id: ha_wave_bri
+    entity_id: ${wave_ent}
+    attribute: brightness
+    internal: true
+    on_value:
+      - lambda: |-
+          if (millis() - id(last_turn_ms) > 3000 && !isnan(x)) {
+            id(wave_pct) = (int) lroundf(x * 100.0f / 255.0f);
+          }
+      - script.execute: paint_light
+
+  - platform: homeassistant
+    id: ha_beds_bri
+    entity_id: ${beds_ent}
+    attribute: brightness
+    internal: true
+    on_value:
+      - lambda: |-
+          if (millis() - id(last_turn_ms) > 3000 && !isnan(x)) {
+            id(beds_pct) = (int) lroundf(x * 100.0f / 255.0f);
+          }
+      - script.execute: paint_light
+
+  - platform: homeassistant
+    id: ha_tomer_bri
+    entity_id: ${tomer_ent}
+    attribute: brightness
+    internal: true
+    on_value:
+      - lambda: |-
+          if (millis() - id(last_turn_ms) > 3000 && !isnan(x)) {
+            id(tomer_pct) = (int) lroundf(x * 100.0f / 255.0f);
+          }
+      - script.execute: paint_light
+
+  - platform: homeassistant
+    id: ha_masha_bri
+    entity_id: ${masha_ent}
+    attribute: brightness
+    internal: true
+    on_value:
+      - lambda: |-
+          if (millis() - id(last_turn_ms) > 3000 && !isnan(x)) {
+            id(masha_pct) = (int) lroundf(x * 100.0f / 255.0f);
+          }
+      - script.execute: paint_light
+
+  - platform: homeassistant
+    id: ha_vol
+    entity_id: ${music_ent}
+    attribute: volume_level
+    internal: true
+    on_value:
+      - lambda: |-
+          if (millis() - id(last_turn_ms) > 3000 && !isnan(x)) {
+            id(vol_pct) = (int) lroundf(x * 100.0f);
+          }
+      - script.execute: paint_music
+
+text_sensor:
+  - platform: homeassistant
+    id: ha_ac_mode
+    entity_id: ${ac_ent}
+    internal: true
+    on_value:
+      - script.execute: paint_ac
+
+  - platform: homeassistant
+    id: ha_all_st
+    entity_id: ${all_ent}
+    internal: true
+    on_value:
+      - script.execute: paint_lights
+      - script.execute: paint_light
+
+  - platform: homeassistant
+    id: ha_wave_st
+    entity_id: ${wave_ent}
+    internal: true
+    on_value:
+      - script.execute: paint_light
+
+  - platform: homeassistant
+    id: ha_beds_st
+    entity_id: ${beds_ent}
+    internal: true
+    on_value:
+      - script.execute: paint_light
+
+  - platform: homeassistant
+    id: ha_tomer_st
+    entity_id: ${tomer_ent}
+    internal: true
+    on_value:
+      - script.execute: paint_light
+
+  - platform: homeassistant
+    id: ha_masha_st
+    entity_id: ${masha_ent}
+    internal: true
+    on_value:
+      - script.execute: paint_light
+
+  - platform: homeassistant
+    id: ha_music_st
+    entity_id: ${music_ent}
+    internal: true
+    on_value:
+      - script.execute: paint_music
+
+  - platform: homeassistant
+    id: ha_closet
+    entity_id: ${closet_sw}
+    internal: true
+    on_value:
+      - script.execute: paint_closet
+
+  - platform: homeassistant
+    id: ha_bath
+    entity_id: ${bath_sw}
+    internal: true
+    on_value:
+      - script.execute: paint_bath
+
+  - platform: homeassistant
+    id: ha_goodnight
+    entity_id: ${goodnight_sw}
+    internal: true
+
+button:
+  - platform: restart
+    name: "Restart"
+    entity_category: diagnostic
+
+binary_sensor:
+  - platform: status
+    name: "Status"
+
+# --- Haptics: DRV2605 driven directly over I2C ---
+# The RAR external component is deliberately not used: its setup() reads a
+# status register this chip NACKs, so it bailed before setting LRA mode and
+# library 6. Writes work fine, so the registers are driven here.
+script:
+  - id: haptic_init
+    then:
+      - lambda: |-
+          const uint8_t addr = 0x5A;
+          uint8_t mode_run[2] = {0x01, 0x00};
+          uint8_t feedback[2] = {0x1A, 0x80};
+          uint8_t library[2]  = {0x03, 0x06};
+          auto e1 = id(ic_bus)->write(addr, mode_run, 2);
+          auto e2 = id(ic_bus)->write(addr, feedback, 2);
+          auto e3 = id(ic_bus)->write(addr, library, 2);
+          ESP_LOGI("haptic", "DRV2605 init (LRA, lib 6): %d %d %d (0 = OK)",
+                   (int) e1, (int) e2, (int) e3);
+
+  - id: haptic
+    parameters:
+      effect: int
+    mode: parallel
+    max_runs: 6
+    then:
+      - lambda: |-
+          const uint8_t addr = 0x5A;
+          uint8_t w1[2] = {0x04, (uint8_t) effect};
+          uint8_t w2[2] = {0x05, 0x00};
+          uint8_t go[2] = {0x0C, 0x01};
+          id(ic_bus)->write(addr, w1, 2);
+          id(ic_bus)->write(addr, w2, 2);
+          id(ic_bus)->write(addr, go, 2);
+
+  # mode: restart slides the timeout forward on every interaction. Good
+  # Night on the wall panel dims the glass; pressing it is already the
+  # gesture that means the room is going dark.
+  - id: screentime
+    mode: restart
+    then:
+      - light.turn_on:
+          id: back_light
+          brightness: !lambda |-
+            return id(ha_goodnight).state == "on" ? 0.25f : 0.85f;
+      - delay: ${screen_timeout}
+      - light.turn_off: back_light
+
+  # SET lets go on its own after six idle seconds, so the knob is never
+  # found holding a value hostage.
+  - id: adjust_timeout
+    mode: restart
+    then:
+      - delay: 6s
+      - if:
+          condition:
+            lambda: 'return id(ui_adjust);'
+          then:
+            - lambda: 'id(ui_adjust) = false;'
+            - script.execute:
+                id: haptic
+                effect: ${fx_out}
+            - script.execute: paint_current
+
+  # ------------------------------------------------------------------------
+  # Painting. One script per page; the page switch paints before it shows so
+  # a card is never stale for a frame.
+  # ------------------------------------------------------------------------
+
+  - id: paint_ac
+    mode: restart
+    then:
+      - lvgl.label.update:
+          id: val_ac
+          text: !lambda |-
+            static char b[12];
+            if (id(ha_ac_mode).state == "off" || id(ha_ac_mode).state == "unavailable") { return "OFF"; }
+            snprintf(b, sizeof(b), "%.1f", id(ac_target));
+            return b;
+          text_color: !lambda |-
+            return lv_color_hex(id(ui_adjust) && id(ui_level) == 0 && id(ui_page) == 0 ? 0xFFFFFF : 0x53B4F5);
+      - lvgl.label.update:
+          id: sub_ac
+          text: !lambda |-
+            static char b[12];
+            float r = id(ha_ac_current).state;
+            if (isnan(r)) { return ""; }
+            snprintf(b, sizeof(b), "ROOM %d", (int) lroundf(r));
+            return b;
+      - lvgl.arc.update:
+          id: arc_ac
+          value: !lambda |-
+            if (id(ha_ac_mode).state == "off") return 0;
+            int v = (int) lroundf((id(ac_target) - 16.0f) * 100.0f / 14.0f);
+            return v < 0 ? 0 : (v > 100 ? 100 : v);
+          indicator:
+            arc_color: !lambda |-
+              return lv_color_hex(id(ui_adjust) && id(ui_level) == 0 && id(ui_page) == 0 ? 0xFFFFFF : 0x53B4F5);
+
+  - id: paint_fan
+    mode: restart
+    then:
+      - lvgl.label.update:
+          id: val_fan
+          text: !lambda |-
+            static char b[4];
+            if (id(fan_step) <= 0) { return "OFF"; }
+            snprintf(b, sizeof(b), "%d", id(fan_step));
+            return b;
+          text_color: !lambda |-
+            return lv_color_hex(id(ui_adjust) && id(ui_level) == 0 && id(ui_page) == 1 ? 0xFFFFFF : 0xB8CDD6);
+      - lvgl.label.update:
+          id: sub_fan
+          # Multi-statement on purpose: a single-expression lambda is inlined
+          # and .c_str() lands on a const char* (HARDWARE.md, flashing notes).
+          text: !lambda |-
+            if (id(fan_step) > 0) { return "OF 6"; }
+            return "";
+      - lvgl.arc.update:
+          id: arc_fan
+          value: !lambda 'return id(fan_step) * 100 / 6;'
+          indicator:
+            arc_color: !lambda |-
+              return lv_color_hex(id(ui_adjust) && id(ui_level) == 0 && id(ui_page) == 1 ? 0xFFFFFF : 0xB8CDD6);
+
+  # The LIGHTS folder card: the whole room at a glance.
+  - id: paint_lights
+    mode: restart
+    then:
+      - lvgl.label.update:
+          id: val_lts
+          text: !lambda |-
+            static char b[8];
+            if (id(ha_all_st).state == "off" || id(all_pct) <= 0) { return "OFF"; }
+            snprintf(b, sizeof(b), "%d%%", id(all_pct));
+            return b;
+      - lvgl.arc.update:
+          id: arc_lts
+          value: !lambda |-
+            return id(ha_all_st).state == "off" ? 0 : id(all_pct);
+
+  - id: paint_music
+    mode: restart
+    then:
+      - lvgl.label.update:
+          id: val_mus
+          text: !lambda |-
+            static char b[8];
+            snprintf(b, sizeof(b), "%d%%", id(vol_pct));
+            return b;
+          text_color: !lambda |-
+            return lv_color_hex(id(ui_adjust) && id(ui_level) == 0 && id(ui_page) == 3 ? 0xFFFFFF : 0xF06292);
+      - lvgl.label.update:
+          id: sub_mus
+          text: !lambda |-
+            if (id(ha_music_st).state == "playing") { return "PLAYING"; }
+            if (id(ha_music_st).state == "paused") { return "PAUSED"; }
+            if (id(ha_music_st).state == "idle") { return "IDLE"; }
+            return "";
+      - lvgl.arc.update:
+          id: arc_mus
+          value: !lambda 'return id(vol_pct);'
+          indicator:
+            arc_color: !lambda |-
+              return lv_color_hex(id(ui_adjust) && id(ui_level) == 0 && id(ui_page) == 3 ? 0xFFFFFF : 0xF06292);
+
+  - id: paint_closet
+    mode: restart
+    then:
+      - lvgl.label.update:
+          id: val_clo
+          text: !lambda |-
+            if (id(ha_closet).state == "on") { return "ON"; }
+            return "OFF";
+      - lvgl.arc.update:
+          id: arc_clo
+          value: !lambda 'return id(ha_closet).state == "on" ? 100 : 0;'
+
+  - id: paint_bath
+    mode: restart
+    then:
+      - lvgl.label.update:
+          id: val_bat
+          text: !lambda |-
+            if (id(ha_bath).state == "on") { return "ON"; }
+            return "OFF";
+      - lvgl.arc.update:
+          id: arc_bat
+          value: !lambda 'return id(ha_bath).state == "on" ? 100 : 0;'
+
+  # The shared zone card: name, value and arc switch with light_i.
+  - id: paint_light
+    mode: restart
+    then:
+      - lvgl.label.update:
+          id: name_lt
+          text: !lambda |-
+            switch (id(light_i)) {
+              case 2:  return "WAVE";
+              case 3:  return "BED";
+              case 4:  return "TOMER";
+              case 5:  return "MASHA";
+              default: return "ALL";
+            }
+      - lvgl.label.update:
+          id: val_lt
+          text: !lambda |-
+            static char b[8];
+            int pct; const char* st;
+            switch (id(light_i)) {
+              case 2:  pct = id(wave_pct);  st = id(ha_wave_st).state.c_str();  break;
+              case 3:  pct = id(beds_pct);  st = id(ha_beds_st).state.c_str();  break;
+              case 4:  pct = id(tomer_pct); st = id(ha_tomer_st).state.c_str(); break;
+              case 5:  pct = id(masha_pct); st = id(ha_masha_st).state.c_str(); break;
+              default: pct = id(all_pct);   st = id(ha_all_st).state.c_str();   break;
+            }
+            if (strcmp(st, "on") != 0 || pct <= 0) { return "OFF"; }
+            snprintf(b, sizeof(b), "%d%%", pct);
+            return b;
+          text_color: !lambda |-
+            return lv_color_hex(id(ui_adjust) && id(ui_level) == 1 ? 0xFFFFFF : 0xFFB558);
+      - lvgl.arc.update:
+          id: arc_lt
+          value: !lambda |-
+            int pct; const char* st;
+            switch (id(light_i)) {
+              case 2:  pct = id(wave_pct);  st = id(ha_wave_st).state.c_str();  break;
+              case 3:  pct = id(beds_pct);  st = id(ha_beds_st).state.c_str();  break;
+              case 4:  pct = id(tomer_pct); st = id(ha_tomer_st).state.c_str(); break;
+              case 5:  pct = id(masha_pct); st = id(ha_masha_st).state.c_str(); break;
+              default: pct = id(all_pct);   st = id(ha_all_st).state.c_str();   break;
+            }
+            return strcmp(st, "on") == 0 ? pct : 0;
+          indicator:
+            arc_color: !lambda |-
+              return lv_color_hex(id(ui_adjust) && id(ui_level) == 1 ? 0xFFFFFF : 0xFFB558);
+
+  - id: paint_current
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: 'return id(ui_level) == 1;'
+          then:
+            - if:
+                condition:
+                  lambda: 'return id(light_i) != 0;'
+                then: [script.execute: paint_light]
+          else:
+            - if:
+                condition:
+                  lambda: 'return id(ui_page) == 0;'
+                then: [script.execute: paint_ac]
+            - if:
+                condition:
+                  lambda: 'return id(ui_page) == 1;'
+                then: [script.execute: paint_fan]
+            - if:
+                condition:
+                  lambda: 'return id(ui_page) == 2;'
+                then: [script.execute: paint_lights]
+            - if:
+                condition:
+                  lambda: 'return id(ui_page) == 3;'
+                then: [script.execute: paint_music]
+            - if:
+                condition:
+                  lambda: 'return id(ui_page) == 4;'
+                then: [script.execute: paint_closet]
+            - if:
+                condition:
+                  lambda: 'return id(ui_page) == 5;'
+                then: [script.execute: paint_bath]
+
+  - id: paint_all
+    mode: restart
+    then:
+      - script.execute: paint_ac
+      - script.execute: paint_fan
+      - script.execute: paint_lights
+      - script.execute: paint_music
+      - script.execute: paint_closet
+      - script.execute: paint_bath
+      - script.execute: paint_light
+
+  - id: show_page
+    mode: restart
+    then:
+      - script.execute: paint_current
+      - if:
+          condition:
+            lambda: 'return id(ui_level) == 1;'
+          then:
+            - if:
+                condition:
+                  lambda: 'return id(light_i) == 0;'
+                then: [lvgl.page.show: page_back]
+                else: [lvgl.page.show: page_light]
+          else:
+            - if:
+                condition:
+                  lambda: 'return id(ui_page) == 0;'
+                then: [lvgl.page.show: page_ac]
+            - if:
+                condition:
+                  lambda: 'return id(ui_page) == 1;'
+                then: [lvgl.page.show: page_fan]
+            - if:
+                condition:
+                  lambda: 'return id(ui_page) == 2;'
+                then: [lvgl.page.show: page_lights]
+            - if:
+                condition:
+                  lambda: 'return id(ui_page) == 3;'
+                then: [lvgl.page.show: page_music]
+            - if:
+                condition:
+                  lambda: 'return id(ui_page) == 4;'
+                then: [lvgl.page.show: page_closet]
+            - if:
+                condition:
+                  lambda: 'return id(ui_page) == 5;'
+                then: [lvgl.page.show: page_bath]
+
+  # ------------------------------------------------------------------------
+  # Gestures
+  # ------------------------------------------------------------------------
+
+  - id: knob_turn
+    parameters:
+      delta: int
+    mode: parallel
+    max_runs: 8
+    then:
+      - script.execute: screentime
+      - script.execute:
+          id: haptic
+          effect: ${fx_detent}
+      - if:
+          condition:
+            lambda: 'return !id(ui_adjust);'
+          then:
+            - lambda: |-
+                if (id(ui_level) == 1) {
+                  id(light_i) = (id(light_i) + delta + 6) % 6;
+                } else {
+                  id(ui_page) = (id(ui_page) + delta + 6) % 6;
+                }
+            - script.execute: show_page
+          else:
+            - script.execute: adjust_timeout
+            - lambda: 'id(last_turn_ms) = millis();'
+            - script.execute:
+                id: value_move
+                delta: !lambda 'return delta;'
+
+  # One detent in SET. Percent values accelerate on detent spacing: a slow
+  # turn steps 1%, a quick one 2%, a spin 5%.
+  - id: value_move
+    parameters:
+      delta: int
+    mode: parallel
+    max_runs: 8
+    then:
+      - if:
+          condition:
+            lambda: 'return id(ui_level) == 1 && id(light_i) != 0;'
+          then:
+            - lambda: |-
+                uint32_t now = millis();
+                uint32_t dt = now - id(last_step_ms);
+                id(last_step_ms) = now;
+                int step = (dt < 70) ? 5 : (dt < 150 ? 2 : 1);
+                int b;
+                switch (id(light_i)) {
+                  case 2:  b = id(wave_pct);  break;
+                  case 3:  b = id(beds_pct);  break;
+                  case 4:  b = id(tomer_pct); break;
+                  case 5:  b = id(masha_pct); break;
+                  default: b = id(all_pct);   break;
+                }
+                b += delta * step;
+                if (b < 0) b = 0;
+                if (b > 100) b = 100;
+                switch (id(light_i)) {
+                  case 2:  id(wave_pct) = b;  break;
+                  case 3:  id(beds_pct) = b;  break;
+                  case 4:  id(tomer_pct) = b; break;
+                  case 5:  id(masha_pct) = b; break;
+                  default: id(all_pct) = b;   break;
+                }
+            - script.execute: paint_light
+            - script.execute: push_light
+      - if:
+          condition:
+            lambda: 'return id(ui_level) == 0 && id(ui_page) == 0;'
+          then:
+            - lambda: |-
+                float t = id(ac_target) + (delta * 0.5f);
+                if (t < 16.0f) t = 16.0f;
+                if (t > 30.0f) t = 30.0f;
+                id(ac_target) = t;
+            - script.execute: paint_ac
+            - homeassistant.action:
+                action: climate.set_temperature
+                data:
+                  entity_id: ${ac_ent}
+                data_template:
+                  temperature: "{{ t }}"
+                variables:
+                  t: !lambda 'return id(ac_target);'
+      - if:
+          condition:
+            lambda: 'return id(ui_level) == 0 && id(ui_page) == 1;'
+          then:
+            - lambda: |-
+                int s = id(fan_step) + delta;
+                if (s < 0) s = 0;
+                if (s > 6) s = 6;
+                id(fan_step) = s;
+            - script.execute: paint_fan
+            # set_percentage, not increase_speed: the step is decided here so
+            # the number on the glass and the fan cannot drift apart. Step 0
+            # is how the fan turns off by rotation.
+            - homeassistant.action:
+                action: fan.set_percentage
+                data:
+                  entity_id: ${fan_ent}
+                data_template:
+                  percentage: "{{ p }}"
+                variables:
+                  p: !lambda 'return id(fan_step) * 100 / 6;'
+      - if:
+          condition:
+            lambda: 'return id(ui_level) == 0 && id(ui_page) == 3;'
+          then:
+            - lambda: |-
+                uint32_t now = millis();
+                uint32_t dt = now - id(last_step_ms);
+                id(last_step_ms) = now;
+                int step = (dt < 70) ? 5 : (dt < 150 ? 2 : 1);
+                int v = id(vol_pct) + delta * step;
+                if (v < 0) v = 0;
+                if (v > 100) v = 100;
+                id(vol_pct) = v;
+            - script.execute: paint_music
+            - homeassistant.action:
+                action: media_player.volume_set
+                data:
+                  entity_id: ${music_ent}
+                data_template:
+                  volume_level: "{{ v }}"
+                variables:
+                  v: !lambda 'return id(vol_pct) / 100.0f;'
+
+  # Send the selected zone's brightness to its own entity. Zero is off - a
+  # dial wound to the floor should leave the light off, not dim-but-on.
+  - id: push_light
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: 'return id(light_i) == 1;'
+          then:
+            - script.execute:
+                id: push_one
+                entity: ${all_ent}
+                pct: !lambda 'return id(all_pct);'
+      - if:
+          condition:
+            lambda: 'return id(light_i) == 2;'
+          then:
+            - script.execute:
+                id: push_one
+                entity: ${wave_ent}
+                pct: !lambda 'return id(wave_pct);'
+      - if:
+          condition:
+            lambda: 'return id(light_i) == 3;'
+          then:
+            - script.execute:
+                id: push_one
+                entity: ${beds_ent}
+                pct: !lambda 'return id(beds_pct);'
+      - if:
+          condition:
+            lambda: 'return id(light_i) == 4;'
+          then:
+            - script.execute:
+                id: push_one
+                entity: ${tomer_ent}
+                pct: !lambda 'return id(tomer_pct);'
+      - if:
+          condition:
+            lambda: 'return id(light_i) == 5;'
+          then:
+            - script.execute:
+                id: push_one
+                entity: ${masha_ent}
+                pct: !lambda 'return id(masha_pct);'
+
+  - id: push_one
+    parameters:
+      entity: string
+      pct: int
+    mode: parallel
+    max_runs: 8
+    then:
+      - if:
+          condition:
+            lambda: 'return pct > 0;'
+          then:
+            - homeassistant.action:
+                action: light.turn_on
+                data_template:
+                  entity_id: "{{ e }}"
+                  brightness_pct: "{{ p }}"
+                variables:
+                  e: !lambda 'return entity;'
+                  p: !lambda 'return pct;'
+          else:
+            - homeassistant.action:
+                action: light.turn_off
+                data_template:
+                  entity_id: "{{ e }}"
+                variables:
+                  e: !lambda 'return entity;'
+
+  # Tap. The wake guard is the coffee knob's: a touch inside the first
+  # 400 ms after backlight-on is the touch that woke the glass, not a
+  # command. Turns are exempt on purpose.
+  - id: on_tap
+    mode: restart
+    then:
+      - script.execute: screentime
+      - if:
+          condition:
+            lambda: 'return millis() - id(wake_ms) > $wake_guard_ms;'
+          then:
+            - if:
+                condition:
+                  lambda: 'return id(ui_level) == 1;'
+                then:
+                  - if:
+                      condition:
+                        lambda: 'return id(light_i) == 0;'
+                      then:
+                        # BACK
+                        - lambda: 'id(ui_adjust) = false; id(ui_level) = 0;'
+                        - script.execute:
+                            id: haptic
+                            effect: ${fx_out}
+                        - script.execute: show_page
+                      else:
+                        - script.execute: toggle_set
+                else:
+                  - if:
+                      condition:
+                        lambda: 'return id(ui_page) == 0 || id(ui_page) == 1 || id(ui_page) == 3;'
+                      then:
+                        - script.execute: toggle_set
+                  - if:
+                      condition:
+                        lambda: 'return id(ui_page) == 2;'
+                      then:
+                        # Into the zones, landing on ALL.
+                        - lambda: 'id(ui_level) = 1; id(light_i) = 1;'
+                        - script.execute:
+                            id: haptic
+                            effect: ${fx_set}
+                        - script.execute: show_page
+                  - if:
+                      condition:
+                        lambda: 'return id(ui_page) == 4;'
+                      then:
+                        - script.execute:
+                            id: haptic
+                            effect: ${fx_power}
+                        - homeassistant.action:
+                            action: switch.toggle
+                            data:
+                              entity_id: ${closet_sw}
+                  - if:
+                      condition:
+                        lambda: 'return id(ui_page) == 5;'
+                      then:
+                        - script.execute:
+                            id: haptic
+                            effect: ${fx_power}
+                        - homeassistant.action:
+                            action: switch.toggle
+                            data:
+                              entity_id: ${bath_sw}
+
+  - id: toggle_set
+    mode: restart
+    then:
+      - lambda: |-
+          id(ui_adjust) = !id(ui_adjust);
+          id(last_step_ms) = 0;
+      - script.execute:
+          id: haptic
+          effect: !lambda 'return id(ui_adjust) ? ${fx_set} : ${fx_out};'
+      - if:
+          condition:
+            lambda: 'return id(ui_adjust);'
+          then: [script.execute: adjust_timeout]
+      - script.execute: paint_current
+
+  - id: on_hold
+    mode: restart
+    then:
+      - script.execute: screentime
+      - lambda: 'id(ui_adjust) = false;'
+      - if:
+          condition:
+            lambda: 'return id(ui_level) == 1;'
+          then:
+            - if:
+                condition:
+                  lambda: 'return id(light_i) != 0;'
+                then:
+                  - script.execute:
+                      id: haptic
+                      effect: ${fx_power}
+                  - script.execute: hold_toggle_light
+                else:
+                  - script.execute:
+                      id: haptic
+                      effect: ${fx_refuse}
+          else:
+            - if:
+                condition:
+                  lambda: 'return id(ui_page) == 0;'
+                then:
+                  - script.execute:
+                      id: haptic
+                      effect: ${fx_power}
+                  - homeassistant.action:
+                      action: climate.toggle
+                      data:
+                        entity_id: ${ac_ent}
+            - if:
+                condition:
+                  lambda: 'return id(ui_page) == 1;'
+                then:
+                  - script.execute:
+                      id: haptic
+                      effect: ${fx_power}
+                  - homeassistant.action:
+                      action: fan.toggle
+                      data:
+                        entity_id: ${fan_ent}
+            - if:
+                condition:
+                  lambda: 'return id(ui_page) == 2;'
+                then:
+                  # The whole room, one hold.
+                  - script.execute:
+                      id: haptic
+                      effect: ${fx_power}
+                  - homeassistant.action:
+                      action: light.toggle
+                      data:
+                        entity_id: ${all_ent}
+            - if:
+                condition:
+                  lambda: 'return id(ui_page) == 3;'
+                then:
+                  - script.execute:
+                      id: haptic
+                      effect: ${fx_power}
+                  - homeassistant.action:
+                      action: media_player.media_play_pause
+                      data:
+                        entity_id: ${music_ent}
+            - if:
+                condition:
+                  lambda: 'return id(ui_page) >= 4;'
+                then:
+                  - script.execute:
+                      id: haptic
+                      effect: ${fx_refuse}
+
+  - id: hold_toggle_light
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: 'return id(light_i) == 1;'
+          then:
+            - homeassistant.action:
+                action: light.toggle
+                data:
+                  entity_id: ${all_ent}
+      - if:
+          condition:
+            lambda: 'return id(light_i) == 2;'
+          then:
+            - homeassistant.action:
+                action: light.toggle
+                data:
+                  entity_id: ${wave_ent}
+      - if:
+          condition:
+            lambda: 'return id(light_i) == 3;'
+          then:
+            - homeassistant.action:
+                action: light.toggle
+                data:
+                  entity_id: ${beds_ent}
+      - if:
+          condition:
+            lambda: 'return id(light_i) == 4;'
+          then:
+            - homeassistant.action:
+                action: light.toggle
+                data:
+                  entity_id: ${tomer_ent}
+      - if:
+          condition:
+            lambda: 'return id(light_i) == 5;'
+          then:
+            - homeassistant.action:
+                action: light.toggle
+                data:
+                  entity_id: ${masha_ent}
+
+# =============================================================================
+# FACE - one page per card, each with its own background, icon and colour, so
+# the card reads off the glass before any text does. Geometry: ring r = 160
+# stroke 10 inside the 172 safe radius; icon 44 px top, name under it, value
+# 60 px centre, one detail line below.
+# =============================================================================
+lvgl:
+  id: my_lvgl
+  displays: [main_display]
+  touchscreens:
+    - touchscreen_id: my_touchscreen
+      long_press_time: 700ms
+  color_depth: 16
+  buffer_size: 24%
+  bg_color: 0x000000
+  # USB-C end is the top when plugged in for power. mipi_spi reports hardware
+  # rotation, so LVGL does this in the panel, not on the CPU.
+  rotation: 180
+  pages:
+    # ---------------- AC - cold blue ----------------
+    - id: page_ac
+      bg_color: 0x0A1420
+      on_short_click: [script.execute: on_tap]
+      on_long_press: [script.execute: on_hold]
+      widgets:
+        - arc:
+            id: arc_ac
+            align: CENTER
+            width: 328
+            height: 328
+            start_angle: 110
+            end_angle: 70
+            min_value: 0
+            max_value: 100
+            value: 0
+            adjustable: false
+            clickable: false
+            arc_width: 10
+            arc_color: 0x16324A
+            indicator:
+              arc_color: 0x53B4F5
+              arc_width: 10
+        - label:
+            text: "󰜗"
+            text_font: mdi_44
+            text_color: 0x53B4F5
+            align: CENTER
+            y: -100
+        - label:
+            text: "AC"
+            text_font: label_28
+            text_color: 0x39698C
+            text_letter_space: 3
+            align: CENTER
+            y: -56
+        - label:
+            id: val_ac
+            text: "--"
+            text_font: value_60
+            text_color: 0x53B4F5
+            align: CENTER
+            y: 8
+        - label:
+            id: sub_ac
+            text: ""
+            text_font: label_28
+            text_color: 0x39698C
+            align: CENTER
+            y: 76
+
+    # ---------------- FAN - steel ----------------
+    - id: page_fan
+      bg_color: 0x101619
+      on_short_click: [script.execute: on_tap]
+      on_long_press: [script.execute: on_hold]
+      widgets:
+        - arc:
+            id: arc_fan
+            align: CENTER
+            width: 328
+            height: 328
+            start_angle: 110
+            end_angle: 70
+            min_value: 0
+            max_value: 100
+            value: 0
+            adjustable: false
+            clickable: false
+            arc_width: 10
+            arc_color: 0x263238
+            indicator:
+              arc_color: 0xB8CDD6
+              arc_width: 10
+        - label:
+            text: "󱞗"
+            text_font: mdi_44
+            text_color: 0xB8CDD6
+            align: CENTER
+            y: -100
+        - label:
+            text: "FAN"
+            text_font: label_28
+            text_color: 0x5E7681
+            text_letter_space: 3
+            align: CENTER
+            y: -56
+        - label:
+            id: val_fan
+            text: "--"
+            text_font: value_60
+            text_color: 0xB8CDD6
+            align: CENTER
+            y: 8
+        - label:
+            id: sub_fan
+            text: ""
+            text_font: label_28
+            text_color: 0x5E7681
+            align: CENTER
+            y: 76
+
+    # ---------------- LIGHTS folder - warm amber ----------------
+    - id: page_lights
+      bg_color: 0x1A1206
+      on_short_click: [script.execute: on_tap]
+      on_long_press: [script.execute: on_hold]
+      widgets:
+        - arc:
+            id: arc_lts
+            align: CENTER
+            width: 328
+            height: 328
+            start_angle: 110
+            end_angle: 70
+            min_value: 0
+            max_value: 100
+            value: 0
+            adjustable: false
+            clickable: false
+            arc_width: 10
+            arc_color: 0x3A2A10
+            indicator:
+              arc_color: 0xFFB558
+              arc_width: 10
+        - label:
+            text: "󱁑"
+            text_font: mdi_44
+            text_color: 0xFFB558
+            align: CENTER
+            y: -100
+        - label:
+            text: "LIGHTS"
+            text_font: label_28
+            text_color: 0x8C6A35
+            text_letter_space: 3
+            align: CENTER
+            y: -56
+        - label:
+            id: val_lts
+            text: "--"
+            text_font: value_60
+            text_color: 0xFFB558
+            align: CENTER
+            y: 8
+        - label:
+            text: "5 ZONES"
+            text_font: label_28
+            text_color: 0x8C6A35
+            align: CENTER
+            y: 76
+
+    # ---------------- MUSIC - rose ----------------
+    - id: page_music
+      bg_color: 0x1A0D12
+      on_short_click: [script.execute: on_tap]
+      on_long_press: [script.execute: on_hold]
+      widgets:
+        - arc:
+            id: arc_mus
+            align: CENTER
+            width: 328
+            height: 328
+            start_angle: 110
+            end_angle: 70
+            min_value: 0
+            max_value: 100
+            value: 0
+            adjustable: false
+            clickable: false
+            arc_width: 10
+            arc_color: 0x3A1E2A
+            indicator:
+              arc_color: 0xF06292
+              arc_width: 10
+        - label:
+            text: "󰝚"
+            text_font: mdi_44
+            text_color: 0xF06292
+            align: CENTER
+            y: -100
+        - label:
+            text: "MUSIC"
+            text_font: label_28
+            text_color: 0x8C4A62
+            text_letter_space: 3
+            align: CENTER
+            y: -56
+        - label:
+            id: val_mus
+            text: "--"
+            text_font: value_60
+            text_color: 0xF06292
+            align: CENTER
+            y: 8
+        - label:
+            id: sub_mus
+            text: ""
+            text_font: label_28
+            text_color: 0x8C4A62
+            align: CENTER
+            y: 76
+
+    # ---------------- CLOSET - violet ----------------
+    - id: page_closet
+      bg_color: 0x140F1F
+      on_short_click: [script.execute: on_tap]
+      on_long_press: [script.execute: on_hold]
+      widgets:
+        - arc:
+            id: arc_clo
+            align: CENTER
+            width: 328
+            height: 328
+            start_angle: 110
+            end_angle: 70
+            min_value: 0
+            max_value: 100
+            value: 0
+            adjustable: false
+            clickable: false
+            arc_width: 10
+            arc_color: 0x2C2347
+            indicator:
+              arc_color: 0xB79BFF
+              arc_width: 10
+        - label:
+            text: "󰾑"
+            text_font: mdi_44
+            text_color: 0xB79BFF
+            align: CENTER
+            y: -100
+        - label:
+            text: "CLOSET"
+            text_font: label_28
+            text_color: 0x625490
+            text_letter_space: 3
+            align: CENTER
+            y: -56
+        - label:
+            id: val_clo
+            text: "--"
+            text_font: value_60
+            text_color: 0xB79BFF
+            align: CENTER
+            y: 8
+
+    # ---------------- BATH - aqua ----------------
+    - id: page_bath
+      bg_color: 0x071812
+      on_short_click: [script.execute: on_tap]
+      on_long_press: [script.execute: on_hold]
+      widgets:
+        - arc:
+            id: arc_bat
+            align: CENTER
+            width: 328
+            height: 328
+            start_angle: 110
+            end_angle: 70
+            min_value: 0
+            max_value: 100
+            value: 0
+            adjustable: false
+            clickable: false
+            arc_width: 10
+            arc_color: 0x14382C
+            indicator:
+              arc_color: 0x4FE0B0
+              arc_width: 10
+        - label:
+            text: "󰦡"
+            text_font: mdi_44
+            text_color: 0x4FE0B0
+            align: CENTER
+            y: -100
+        - label:
+            text: "BATH"
+            text_font: label_28
+            text_color: 0x2E8068
+            text_letter_space: 3
+            align: CENTER
+            y: -56
+        - label:
+            id: val_bat
+            text: "--"
+            text_font: value_60
+            text_color: 0x4FE0B0
+            align: CENTER
+            y: 8
+
+    # ---------------- zone card, shared by all five zones ----------------
+    - id: page_light
+      bg_color: 0x1A1206
+      on_short_click: [script.execute: on_tap]
+      on_long_press: [script.execute: on_hold]
+      widgets:
+        - arc:
+            id: arc_lt
+            align: CENTER
+            width: 328
+            height: 328
+            start_angle: 110
+            end_angle: 70
+            min_value: 0
+            max_value: 100
+            value: 0
+            adjustable: false
+            clickable: false
+            arc_width: 10
+            arc_color: 0x3A2A10
+            indicator:
+              arc_color: 0xFFB558
+              arc_width: 10
+        - label:
+            text: "󱁑"
+            text_font: mdi_44
+            text_color: 0xFFB558
+            align: CENTER
+            y: -100
+        - label:
+            id: name_lt
+            text: "ALL"
+            text_font: label_28
+            text_color: 0x8C6A35
+            text_letter_space: 3
+            align: CENTER
+            y: -56
+        - label:
+            id: val_lt
+            text: "--"
+            text_font: value_60
+            text_color: 0xFFB558
+            align: CENTER
+            y: 8
+
+    # ---------------- BACK ----------------
+    - id: page_back
+      bg_color: 0x1A1206
+      on_short_click: [script.execute: on_tap]
+      on_long_press: [script.execute: on_hold]
+      widgets:
+        - label:
+            text: "󰁍"
+            text_font: mdi_44
+            text_color: 0xFFB558
+            align: CENTER
+            y: -30
+        - label:
+            text: "BACK"
+            text_font: label_28
+            text_color: 0x8C6A35
+            text_letter_space: 3
+            align: CENTER
+            y: 30

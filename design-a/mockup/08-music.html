@@ -1,0 +1,39 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Music — bedside knob, design A</title>
+<link rel="stylesheet" href="face.css">
+<div class="wrap">
+  <h1>08 — MUSIC. Volume on the ring.</h1>
+  <p class="note">Second from the far end of the strip. Same page, same ring, same two
+  slots, plus the one extra fact this stop earns: what is playing. Turning sets the
+  volume of <code>media_player.master_bedroom_master_bedroom_wiim</code> in steps of 2
+  points, capped at 85 — the arc's wall is that cap, not 100.</p>
+
+  <div class="stage">
+    <div class="face night">
+      <svg viewBox="0 0 360 360">
+        <circle class="arc trk" cx="180" cy="180" r="160"
+                stroke-dasharray="893.6 111.7" transform="rotate(-250 180 180)"/>
+        <circle class="arc val" cx="180" cy="180" r="160" style="stroke:#6e4400"
+                stroke-dasharray="336.4 668.9" transform="rotate(-250 180 180)"/>
+      </svg>
+      <div class="a">MUSIC</div>
+      <div class="b">32</div>
+      <div class="c">NIGHTSWIMMING</div>
+    </div>
+    <div class="cap">
+      <p class="t">No number units, no source badge, no artwork, no track list.</p>
+      <p class="d">The title is a hint at what is playing, not a readout — 28 px and
+      about 15 characters, ellipsised. It is here because at 3 am the useful question is
+      "is this the thing I want quieter", and the answer is one word long.</p>
+      <p class="d">Hold 1 s → <code>script.room_media_smart_transport</code> with
+      <code>ma_player</code> and <code>native_player</code>, which is the only transport
+      path that survives an AirPlay session. Hold 3 s → <code>script.music_stop_all</code>.
+      Play/pause is not on the tap, because the tap means "back to BED" everywhere and
+      that is worth more than a shortcut.</p>
+      <p class="g">Volume arc is flat amber, not the warmth ramp. The ramp means colour
+      temperature and nothing else; reusing it here would make a colour mean two
+      things.</p>
+    </div>
+  </div>
+</div>

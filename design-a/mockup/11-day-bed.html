@@ -1,0 +1,38 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Day palette — bedside knob, design A</title>
+<link rel="stylesheet" href="face.css">
+<div class="wrap">
+  <h1>11 — 14:00. Same page, day palette.</h1>
+  <p class="note">Between 06:00 and 22:00 the backlight follows
+  <code>sensor.lumi_lumi_motion_ac02_illuminance</code>, the type goes white, and the
+  arc may be drawn in the light's true colour temperature. Nothing else changes: same
+  ring, same slots, same strip, same gestures.</p>
+
+  <div class="stage">
+    <div class="face day">
+      <svg viewBox="0 0 360 360">
+        <circle class="arc trk" cx="180" cy="180" r="160"
+                stroke-dasharray="893.6 111.7" transform="rotate(-250 180 180)"/>
+        <circle class="arc val" cx="180" cy="180" r="160" style="stroke:#ffcda6"
+                stroke-dasharray="893.6 111.7" transform="rotate(-250 180 180)"/>
+      </svg>
+      <div class="a">BED</div>
+      <div class="b">100%</div>
+    </div>
+    <div class="cap">
+      <p class="t">The word BED means something different here, and it should.</p>
+      <p class="d">At 14:00 it is one multicast to
+      <code>light.home_assistant_connect_zbt_2_bedroom_led_strips</code>, wave included.
+      At 02:40 it is three strips addressed individually with the wave left dark. The
+      face does not explain that and must not: the user's intent is "the bed light" at
+      both hours, and which entities carry that intent is
+      <code>script.bed_strip_step</code>'s business.</p>
+      <p class="g">Day is the only mode allowed full white and a true-colour arc:
+      <code>#ffcda6</code> here is roughly 4000 K. At night the same 100% draws
+      <code>#806018</code> — the pale end of an amber ramp — because a real 4000 K swatch
+      is a near-white with the exact blue the night palette exists to keep off the
+      glass.</p>
+    </div>
+  </div>
+</div>

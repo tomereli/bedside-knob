@@ -1,0 +1,42 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Hold — good night — bedside knob, design A</title>
+<link rel="stylesheet" href="face.css">
+<div class="wrap">
+  <h1>07 — Finger down, still, 1.4 s in</h1>
+  <p class="note">Held on BED. The arc has passed the first break, so releasing now runs
+  <code>script.bedroom_good_night</code>. Keep going and the arc closes on the wall at
+  3 s, adding <code>script.house_good_night</code>. Released before the first break,
+  nothing happens and nothing was called.</p>
+
+  <div class="stage">
+    <div class="face night">
+      <svg viewBox="0 0 360 360">
+        <circle class="arc trk" cx="180" cy="180" r="160"
+                stroke-dasharray="893.6 111.7" transform="rotate(-250 180 180)"/>
+        <circle class="arc" cx="180" cy="180" r="160" style="stroke:#805000"
+                stroke-dasharray="297.9 1005" transform="rotate(-250 180 180)"/>
+        <circle class="arc" cx="180" cy="180" r="160" style="stroke:#805000"
+                stroke-dasharray="116.7 1005" transform="rotate(-139 180 180)"/>
+      </svg>
+      <div class="a">GOOD NIGHT</div>
+      <div class="b">ROOM</div>
+    </div>
+    <div class="cap">
+      <p class="t">The break is the commitment boundary, and it is felt as well as seen.</p>
+      <p class="d">Haptics rise across it: a single click at 1 s, a heavier double at 3 s.
+      The 60 px word says which stage the current duration would commit — <b>ROOM</b>
+      now, <b>HOUSE</b> after the break closes. Nothing here is irreversible: the room
+      script leaves the under-bed strip lit and does not touch the AC, and the house
+      script leaves the hallway at 10%. <code>script.house_all_off</code> is not reachable
+      from any gesture on this device.</p>
+      <p class="d">Hold works from a dark screen too, with the same staging and the same
+      first-second of nothing. There is no guard, because there is nothing on this knob
+      worth guarding against — the destructive services were refused at design time
+      rather than gated at runtime.</p>
+      <p class="g">Turning during a hold cancels it outright and enters target selection
+      (05). A hold that has become a selection cannot become a hold again until the
+      finger lifts, so no amount of fumbling turns a browse into a goodnight.</p>
+    </div>
+  </div>
+</div>
