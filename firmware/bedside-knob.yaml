@@ -6,37 +6,45 @@
 # took it from KrX3D/WaveShare-Knob-Esp32S3 @ 5e22f98 and cross-checked it
 # against the board schematic. No pin is invented here. The UI architecture
 # is the coffee knob's: one fully-styled LVGL page per card, paint before
-# show, arc indicator recoloured at runtime.
+# show, arc indicator recoloured at runtime, round on-glass buttons.
 #   Display QSPI: CLK 13, D0-3 15/16/17/18, CS 14, RST 21   (ST77916)
 #   Touch  I2C:   SDA 11, SCL 12, INT 9, RST 10             (CST816 @ 0x15)
 #   Haptic I2C:   same bus, DRV2605 @ 0x5A, EN strapped 3V3, TRIG to GND
 #   Knob EC1:     A GPIO8, B GPIO7  (EC2 is on the OTHER MCU - not used)
 #   Backlight:    GPIO47 (PWM)
 #
-# INTERACTION - two levels.
+# INTERACTION
 #
-#   TOP        turn    AC - FAN - LIGHTS - MUSIC - CLOSET - BATH, wrapping
-#              tap     AC/FAN/MUSIC: enter SET       LIGHTS: open the zones
-#                      CLOSET/BATH: toggle the relay
-#              hold    AC/FAN: power    LIGHTS: whole room on/off
-#                      MUSIC: play/pause    CLOSET/BATH: refusal buzz
+#   One flat carousel, no sub-menus to get stuck in:
+#     AC - FAN - LIGHTS - SCENES - MUSIC - CLOSET - BATH, wrapping.
+#   A turn always moves between cards unless SET is open, so the way out of
+#   anything is the gesture the hand is already making.
 #
-#   ZONES      turn    BACK - ALL - WAVE - BED - TOMER - MASHA, wrapping
-#              tap     BACK: up one level    a zone: enter SET
-#              hold    a zone: that light on/off
+#   LIGHTS carries every zone as a button on the glass - ALL, WAVE, BED,
+#   TOM, MASH, READ. Tapping a zone selects it and opens SET; the dial then
+#   dims that zone. Holding a zone button toggles it. READ is a pair of
+#   relays with no dimmer, so it only toggles.
 #
-#   SET        the ring and the number turn white; a turn changes the value
-#              on the spot, no confirmation. A slow turn steps 1%, a fast
-#              spin accelerates to 5% - precision when wanted, reach when
-#              not. Tap or six idle seconds leaves SET.
+#   SCENES carries the bedside panel's own keys: Good Night, Good Morning,
+#   All Off. The knob presses the same keys the hand does.
+#
+#   MUSIC carries playlist / play-pause / next. The playlist button opens
+#   the one sub-page, which has a BACK button and also leaves on a hold.
+#
+#   SET  the ring and the number turn white; a turn changes the value on the
+#        spot. Steps ramp with the run: single detents move 1%, a sustained
+#        spin climbs 2/4/7 to 10% per detent, a fast flick doubles that.
+#        Tap the face or wait six seconds to leave.
 #
 #   A tap on a dark screen only wakes, and for 400 ms after the backlight
 #   comes up taps are wake-only. Turns are never guarded. Sleep returns the
-#   knob to the top level, so it is never found deep in a menu.
+#   knob to the top level.
 #
-#   Every value paints locally on the detent that moved it; Home Assistant
-#   is told afterwards and never waited on. Every action goes straight to
-#   the entity. No script.*, no automations.
+#   Values go straight to their entities and paint locally before Home
+#   Assistant is told. Scene keys are the Vitrea keys themselves and
+#   playlists resolve through script.play_playlist_by_name - the house's
+#   single name-to-URI map. The playlist names live in an input_select, so
+#   changing them is a Home Assistant edit and needs no reflash.
 # =============================================================================
 
 substitutions:
@@ -47,11 +55,18 @@ substitutions:
   beds_ent:   light.tzb210_ue01a0s2_ts0502b
   tomer_ent:  light.tzb210_ue01a0s2_ts0502b_2
   masha_ent:  light.left_nightstand
+  read_t_ent: switch.slvn_vknysh_n15_2
+  read_m_ent: switch.khdr_shynh_rshy_kh_shynh_qryh_shml
   music_ent:  media_player.master_bedroom_master_bedroom_wiim
+  plist_ent:  input_select.bedroom_playlist
   closet_sw:  switch.khdr_shynh_rshy_khdr_rvnvt
   bath_sw:    switch.khdr_rkhtsh_rshy_kh_rkhtsh_rshy_ml
-  # The Vitrea panel's own Good Night key; the screen follows it instead of
-  # a hard-coded hour.
+  # Tomer's bedside Vitrea panel (N15).
+  key_night:   switch.slvn_vknysh_n15_3
+  key_morning: switch.slvn_vknysh_n15_4
+  key_alloff:  switch.slvn_vknysh_n15_5
+  # The entrance panel's Good Night key; the screen follows it for night
+  # dimming instead of a hard-coded hour.
   goodnight_sw: switch.khdr_shynh_rshy_n2_6
   screen_timeout: 20s
   wake_guard_ms: "400"
@@ -66,7 +81,7 @@ substitutions:
 esphome:
   name: bedside-knob
   friendly_name: "Bedside Knob"
-  comment: "Nightstand knob - AC, fan, lights, music"
+  comment: "Nightstand knob - AC, fan, lights, scenes, music"
   platformio_options:
     board_build.flash_mode: dio
     board_build.f_flash: 80000000L
@@ -77,7 +92,7 @@ esphome:
         - delay: 2s
         - script.execute: haptic_init
         - script.execute: screentime
-        - script.execute: paint_ac
+        - script.execute: paint_all
 
 esp32:
   board: esp32-s3-devkitc-1
@@ -174,8 +189,8 @@ light:
     default_transition_length:
       milliseconds: 30
     on_turn_off:
-      # Sleep is also the way out of every menu: the knob always wakes at
-      # the top, on the page it fell asleep near, never deep in a list.
+      # Sleep is also the way out of everything: the knob always wakes at
+      # the top level with nothing open.
       - lambda: |-
           id(screen_on) = false;
           id(ui_adjust) = false;
@@ -198,6 +213,9 @@ font:
   - file: "gfonts://Montserrat@500"
     id: label_28
     size: 28
+  - file: "gfonts://Montserrat@500"
+    id: label_18
+    size: 18
   - file: "https://raw.githubusercontent.com/Templarian/MaterialDesign-Webfont/master/fonts/materialdesignicons-webfont.ttf"
     id: mdi_44
     size: 44
@@ -210,6 +228,12 @@ font:
       - "󰾑"
       - "󰦡"
       - "󰁍"
+      - "󰲸"
+      - "󰐎"
+      - "󰒭"
+      - "󰖔"
+      - "󰖨"
+      - "󰐥"
 
 external_components:
   - source:
@@ -219,21 +243,22 @@ external_components:
     components: [rotary_encoder_custom]
 
 globals:
-  # Top level: 0 AC, 1 FAN, 2 LIGHTS, 3 MUSIC, 4 CLOSET, 5 BATH
+  # 0 AC, 1 FAN, 2 LIGHTS, 3 SCENES, 4 MUSIC, 5 CLOSET, 6 BATH
   - id: ui_page
     type: int
     restore_value: false
     initial_value: '0'
-  # 0 top carousel, 1 light zones
+  # 0 the carousel, 1 the playlist sub-page
   - id: ui_level
     type: int
     restore_value: false
     initial_value: '0'
-  # Zones: 0 BACK, 1 ALL, 2 WAVE, 3 BED, 4 TOMER, 5 MASHA
-  - id: light_i
+  # Which zone the dial dims: 0 ALL, 1 WAVE, 2 BED, 3 TOMER, 4 MASHA.
+  # Chosen by tapping its button, never by scrolling through it.
+  - id: sel_zone
     type: int
     restore_value: false
-    initial_value: '1'
+    initial_value: '0'
   - id: ui_adjust
     type: bool
     restore_value: false
@@ -246,15 +271,17 @@ globals:
     type: uint32_t
     restore_value: false
     initial_value: '0'
-  # Values held locally so a detent moves the glass immediately; the guard
-  # window keeps a slow HA echo from dragging a number back mid-gesture.
   - id: last_turn_ms
     type: uint32_t
     restore_value: false
     initial_value: '0'
-  # Detent-to-detent gap, for acceleration in SET.
+  # Detent-to-detent gap and run length, for spin acceleration in SET.
   - id: last_step_ms
     type: uint32_t
+    restore_value: false
+    initial_value: '0'
+  - id: spin_streak
+    type: int
     restore_value: false
     initial_value: '0'
   - id: ac_target
@@ -316,9 +343,7 @@ sensor:
     internal: true
     on_value:
       - lambda: |-
-          if (millis() - id(last_turn_ms) > 3000 && !isnan(x)) {
-            id(ac_target) = x;
-          }
+          if (millis() - id(last_turn_ms) > 3000 && !isnan(x)) { id(ac_target) = x; }
       - script.execute: paint_ac
 
   - platform: homeassistant
@@ -352,7 +377,6 @@ sensor:
             id(all_pct) = (int) lroundf(x * 100.0f / 255.0f);
           }
       - script.execute: paint_lights
-      - script.execute: paint_light
 
   - platform: homeassistant
     id: ha_wave_bri
@@ -364,7 +388,7 @@ sensor:
           if (millis() - id(last_turn_ms) > 3000 && !isnan(x)) {
             id(wave_pct) = (int) lroundf(x * 100.0f / 255.0f);
           }
-      - script.execute: paint_light
+      - script.execute: paint_lights
 
   - platform: homeassistant
     id: ha_beds_bri
@@ -376,7 +400,7 @@ sensor:
           if (millis() - id(last_turn_ms) > 3000 && !isnan(x)) {
             id(beds_pct) = (int) lroundf(x * 100.0f / 255.0f);
           }
-      - script.execute: paint_light
+      - script.execute: paint_lights
 
   - platform: homeassistant
     id: ha_tomer_bri
@@ -388,7 +412,7 @@ sensor:
           if (millis() - id(last_turn_ms) > 3000 && !isnan(x)) {
             id(tomer_pct) = (int) lroundf(x * 100.0f / 255.0f);
           }
-      - script.execute: paint_light
+      - script.execute: paint_lights
 
   - platform: homeassistant
     id: ha_masha_bri
@@ -400,7 +424,7 @@ sensor:
           if (millis() - id(last_turn_ms) > 3000 && !isnan(x)) {
             id(masha_pct) = (int) lroundf(x * 100.0f / 255.0f);
           }
-      - script.execute: paint_light
+      - script.execute: paint_lights
 
   - platform: homeassistant
     id: ha_vol
@@ -428,35 +452,48 @@ text_sensor:
     internal: true
     on_value:
       - script.execute: paint_lights
-      - script.execute: paint_light
 
   - platform: homeassistant
     id: ha_wave_st
     entity_id: ${wave_ent}
     internal: true
     on_value:
-      - script.execute: paint_light
+      - script.execute: paint_lights
 
   - platform: homeassistant
     id: ha_beds_st
     entity_id: ${beds_ent}
     internal: true
     on_value:
-      - script.execute: paint_light
+      - script.execute: paint_lights
 
   - platform: homeassistant
     id: ha_tomer_st
     entity_id: ${tomer_ent}
     internal: true
     on_value:
-      - script.execute: paint_light
+      - script.execute: paint_lights
 
   - platform: homeassistant
     id: ha_masha_st
     entity_id: ${masha_ent}
     internal: true
     on_value:
-      - script.execute: paint_light
+      - script.execute: paint_lights
+
+  - platform: homeassistant
+    id: ha_read_t
+    entity_id: ${read_t_ent}
+    internal: true
+    on_value:
+      - script.execute: paint_lights
+
+  - platform: homeassistant
+    id: ha_read_m
+    entity_id: ${read_m_ent}
+    internal: true
+    on_value:
+      - script.execute: paint_lights
 
   - platform: homeassistant
     id: ha_music_st
@@ -464,6 +501,13 @@ text_sensor:
     internal: true
     on_value:
       - script.execute: paint_music
+
+  - platform: homeassistant
+    id: ha_plist
+    entity_id: ${plist_ent}
+    internal: true
+    on_value:
+      - script.execute: paint_plist
 
   - platform: homeassistant
     id: ha_closet
@@ -526,9 +570,6 @@ script:
           id(ic_bus)->write(addr, w2, 2);
           id(ic_bus)->write(addr, go, 2);
 
-  # mode: restart slides the timeout forward on every interaction. Good
-  # Night on the wall panel dims the glass; pressing it is already the
-  # gesture that means the room is going dark.
   - id: screentime
     mode: restart
     then:
@@ -539,8 +580,6 @@ script:
       - delay: ${screen_timeout}
       - light.turn_off: back_light
 
-  # SET lets go on its own after six idle seconds, so the knob is never
-  # found holding a value hostage.
   - id: adjust_timeout
     mode: restart
     then:
@@ -556,8 +595,7 @@ script:
             - script.execute: paint_current
 
   # ------------------------------------------------------------------------
-  # Painting. One script per page; the page switch paints before it shows so
-  # a card is never stale for a frame.
+  # Painting
   # ------------------------------------------------------------------------
 
   - id: paint_ac
@@ -571,7 +609,7 @@ script:
             snprintf(b, sizeof(b), "%.1f", id(ac_target));
             return b;
           text_color: !lambda |-
-            return lv_color_hex(id(ui_adjust) && id(ui_level) == 0 && id(ui_page) == 0 ? 0xFFFFFF : 0x53B4F5);
+            return lv_color_hex(id(ui_adjust) && id(ui_page) == 0 ? 0xFFFFFF : 0x53B4F5);
       - lvgl.label.update:
           id: sub_ac
           text: !lambda |-
@@ -588,7 +626,7 @@ script:
             return v < 0 ? 0 : (v > 100 ? 100 : v);
           indicator:
             arc_color: !lambda |-
-              return lv_color_hex(id(ui_adjust) && id(ui_level) == 0 && id(ui_page) == 0 ? 0xFFFFFF : 0x53B4F5);
+              return lv_color_hex(id(ui_adjust) && id(ui_page) == 0 ? 0xFFFFFF : 0x53B4F5);
 
   - id: paint_fan
     mode: restart
@@ -601,7 +639,7 @@ script:
             snprintf(b, sizeof(b), "%d", id(fan_step));
             return b;
           text_color: !lambda |-
-            return lv_color_hex(id(ui_adjust) && id(ui_level) == 0 && id(ui_page) == 1 ? 0xFFFFFF : 0xB8CDD6);
+            return lv_color_hex(id(ui_adjust) && id(ui_page) == 1 ? 0xFFFFFF : 0xB8CDD6);
       - lvgl.label.update:
           id: sub_fan
           # Multi-statement on purpose: a single-expression lambda is inlined
@@ -614,23 +652,86 @@ script:
           value: !lambda 'return id(fan_step) * 100 / 6;'
           indicator:
             arc_color: !lambda |-
-              return lv_color_hex(id(ui_adjust) && id(ui_level) == 0 && id(ui_page) == 1 ? 0xFFFFFF : 0xB8CDD6);
+              return lv_color_hex(id(ui_adjust) && id(ui_page) == 1 ? 0xFFFFFF : 0xB8CDD6);
 
-  # The LIGHTS folder card: the whole room at a glance.
+  # Everything about the lights lives on one card. The name says which zone
+  # the dial is pointed at; the buttons below are the whole room.
   - id: paint_lights
     mode: restart
     then:
       - lvgl.label.update:
-          id: val_lts
+          id: name_lt
+          text: !lambda |-
+            switch (id(sel_zone)) {
+              case 1:  return "WAVE";
+              case 2:  return "BED";
+              case 3:  return "TOMER";
+              case 4:  return "MASHA";
+              default: return "ALL";
+            }
+      - lvgl.label.update:
+          id: val_lt
           text: !lambda |-
             static char b[8];
-            if (id(ha_all_st).state == "off" || id(all_pct) <= 0) { return "OFF"; }
-            snprintf(b, sizeof(b), "%d%%", id(all_pct));
+            int pct; const char* st;
+            switch (id(sel_zone)) {
+              case 1:  pct = id(wave_pct);  st = id(ha_wave_st).state.c_str();  break;
+              case 2:  pct = id(beds_pct);  st = id(ha_beds_st).state.c_str();  break;
+              case 3:  pct = id(tomer_pct); st = id(ha_tomer_st).state.c_str(); break;
+              case 4:  pct = id(masha_pct); st = id(ha_masha_st).state.c_str(); break;
+              default: pct = id(all_pct);   st = id(ha_all_st).state.c_str();   break;
+            }
+            if (strcmp(st, "on") != 0 || pct <= 0) { return "OFF"; }
+            snprintf(b, sizeof(b), "%d%%", pct);
             return b;
+          text_color: !lambda |-
+            return lv_color_hex(id(ui_adjust) && id(ui_page) == 2 ? 0xFFFFFF : 0xFFB558);
       - lvgl.arc.update:
-          id: arc_lts
+          id: arc_lt
           value: !lambda |-
-            return id(ha_all_st).state == "off" ? 0 : id(all_pct);
+            int pct; const char* st;
+            switch (id(sel_zone)) {
+              case 1:  pct = id(wave_pct);  st = id(ha_wave_st).state.c_str();  break;
+              case 2:  pct = id(beds_pct);  st = id(ha_beds_st).state.c_str();  break;
+              case 3:  pct = id(tomer_pct); st = id(ha_tomer_st).state.c_str(); break;
+              case 4:  pct = id(masha_pct); st = id(ha_masha_st).state.c_str(); break;
+              default: pct = id(all_pct);   st = id(ha_all_st).state.c_str();   break;
+            }
+            return strcmp(st, "on") == 0 ? pct : 0;
+          indicator:
+            arc_color: !lambda |-
+              return lv_color_hex(id(ui_adjust) && id(ui_page) == 2 ? 0xFFFFFF : 0xFFB558);
+      # A lit zone gets a lit button. This is the room, read at a glance.
+      - lvgl.widget.update:
+          id: btn_all
+          border_color: !lambda |-
+            return lv_color_hex(id(sel_zone) == 0 ? 0xFFFFFF :
+                   (id(ha_all_st).state == "on" ? 0xFFB558 : 0x4A340E));
+      - lvgl.widget.update:
+          id: btn_wave
+          border_color: !lambda |-
+            return lv_color_hex(id(sel_zone) == 1 ? 0xFFFFFF :
+                   (id(ha_wave_st).state == "on" ? 0xFFB558 : 0x4A340E));
+      - lvgl.widget.update:
+          id: btn_bed
+          border_color: !lambda |-
+            return lv_color_hex(id(sel_zone) == 2 ? 0xFFFFFF :
+                   (id(ha_beds_st).state == "on" ? 0xFFB558 : 0x4A340E));
+      - lvgl.widget.update:
+          id: btn_tom
+          border_color: !lambda |-
+            return lv_color_hex(id(sel_zone) == 3 ? 0xFFFFFF :
+                   (id(ha_tomer_st).state == "on" ? 0xFFB558 : 0x4A340E));
+      - lvgl.widget.update:
+          id: btn_mash
+          border_color: !lambda |-
+            return lv_color_hex(id(sel_zone) == 4 ? 0xFFFFFF :
+                   (id(ha_masha_st).state == "on" ? 0xFFB558 : 0x4A340E));
+      - lvgl.widget.update:
+          id: btn_read
+          border_color: !lambda |-
+            bool on = id(ha_read_t).state == "on" || id(ha_read_m).state == "on";
+            return lv_color_hex(on ? 0xFFB558 : 0x4A340E);
 
   - id: paint_music
     mode: restart
@@ -642,7 +743,7 @@ script:
             snprintf(b, sizeof(b), "%d%%", id(vol_pct));
             return b;
           text_color: !lambda |-
-            return lv_color_hex(id(ui_adjust) && id(ui_level) == 0 && id(ui_page) == 3 ? 0xFFFFFF : 0xF06292);
+            return lv_color_hex(id(ui_adjust) && id(ui_page) == 4 ? 0xFFFFFF : 0xF06292);
       - lvgl.label.update:
           id: sub_mus
           text: !lambda |-
@@ -655,7 +756,18 @@ script:
           value: !lambda 'return id(vol_pct);'
           indicator:
             arc_color: !lambda |-
-              return lv_color_hex(id(ui_adjust) && id(ui_level) == 0 && id(ui_page) == 3 ? 0xFFFFFF : 0xF06292);
+              return lv_color_hex(id(ui_adjust) && id(ui_page) == 4 ? 0xFFFFFF : 0xF06292);
+
+  # Whatever Home Assistant currently has selected, verbatim.
+  - id: paint_plist
+    mode: restart
+    then:
+      - lvgl.label.update:
+          id: name_pl
+          text: !lambda |-
+            static char b[48];
+            snprintf(b, sizeof(b), "%s", id(ha_plist).state.c_str());
+            return b;
 
   - id: paint_closet
     mode: restart
@@ -681,64 +793,13 @@ script:
           id: arc_bat
           value: !lambda 'return id(ha_bath).state == "on" ? 100 : 0;'
 
-  # The shared zone card: name, value and arc switch with light_i.
-  - id: paint_light
-    mode: restart
-    then:
-      - lvgl.label.update:
-          id: name_lt
-          text: !lambda |-
-            switch (id(light_i)) {
-              case 2:  return "WAVE";
-              case 3:  return "BED";
-              case 4:  return "TOMER";
-              case 5:  return "MASHA";
-              default: return "ALL";
-            }
-      - lvgl.label.update:
-          id: val_lt
-          text: !lambda |-
-            static char b[8];
-            int pct; const char* st;
-            switch (id(light_i)) {
-              case 2:  pct = id(wave_pct);  st = id(ha_wave_st).state.c_str();  break;
-              case 3:  pct = id(beds_pct);  st = id(ha_beds_st).state.c_str();  break;
-              case 4:  pct = id(tomer_pct); st = id(ha_tomer_st).state.c_str(); break;
-              case 5:  pct = id(masha_pct); st = id(ha_masha_st).state.c_str(); break;
-              default: pct = id(all_pct);   st = id(ha_all_st).state.c_str();   break;
-            }
-            if (strcmp(st, "on") != 0 || pct <= 0) { return "OFF"; }
-            snprintf(b, sizeof(b), "%d%%", pct);
-            return b;
-          text_color: !lambda |-
-            return lv_color_hex(id(ui_adjust) && id(ui_level) == 1 ? 0xFFFFFF : 0xFFB558);
-      - lvgl.arc.update:
-          id: arc_lt
-          value: !lambda |-
-            int pct; const char* st;
-            switch (id(light_i)) {
-              case 2:  pct = id(wave_pct);  st = id(ha_wave_st).state.c_str();  break;
-              case 3:  pct = id(beds_pct);  st = id(ha_beds_st).state.c_str();  break;
-              case 4:  pct = id(tomer_pct); st = id(ha_tomer_st).state.c_str(); break;
-              case 5:  pct = id(masha_pct); st = id(ha_masha_st).state.c_str(); break;
-              default: pct = id(all_pct);   st = id(ha_all_st).state.c_str();   break;
-            }
-            return strcmp(st, "on") == 0 ? pct : 0;
-          indicator:
-            arc_color: !lambda |-
-              return lv_color_hex(id(ui_adjust) && id(ui_level) == 1 ? 0xFFFFFF : 0xFFB558);
-
   - id: paint_current
     mode: restart
     then:
       - if:
           condition:
             lambda: 'return id(ui_level) == 1;'
-          then:
-            - if:
-                condition:
-                  lambda: 'return id(light_i) != 0;'
-                then: [script.execute: paint_light]
+          then: [script.execute: paint_plist]
           else:
             - if:
                 condition:
@@ -754,15 +815,15 @@ script:
                 then: [script.execute: paint_lights]
             - if:
                 condition:
-                  lambda: 'return id(ui_page) == 3;'
+                  lambda: 'return id(ui_page) == 4;'
                 then: [script.execute: paint_music]
             - if:
                 condition:
-                  lambda: 'return id(ui_page) == 4;'
+                  lambda: 'return id(ui_page) == 5;'
                 then: [script.execute: paint_closet]
             - if:
                 condition:
-                  lambda: 'return id(ui_page) == 5;'
+                  lambda: 'return id(ui_page) == 6;'
                 then: [script.execute: paint_bath]
 
   - id: paint_all
@@ -772,9 +833,9 @@ script:
       - script.execute: paint_fan
       - script.execute: paint_lights
       - script.execute: paint_music
+      - script.execute: paint_plist
       - script.execute: paint_closet
       - script.execute: paint_bath
-      - script.execute: paint_light
 
   - id: show_page
     mode: restart
@@ -783,12 +844,7 @@ script:
       - if:
           condition:
             lambda: 'return id(ui_level) == 1;'
-          then:
-            - if:
-                condition:
-                  lambda: 'return id(light_i) == 0;'
-                then: [lvgl.page.show: page_back]
-                else: [lvgl.page.show: page_light]
+          then: [lvgl.page.show: page_plist]
           else:
             - if:
                 condition:
@@ -805,14 +861,18 @@ script:
             - if:
                 condition:
                   lambda: 'return id(ui_page) == 3;'
-                then: [lvgl.page.show: page_music]
+                then: [lvgl.page.show: page_scenes]
             - if:
                 condition:
                   lambda: 'return id(ui_page) == 4;'
-                then: [lvgl.page.show: page_closet]
+                then: [lvgl.page.show: page_music]
             - if:
                 condition:
                   lambda: 'return id(ui_page) == 5;'
+                then: [lvgl.page.show: page_closet]
+            - if:
+                condition:
+                  lambda: 'return id(ui_page) == 6;'
                 then: [lvgl.page.show: page_bath]
 
   # ------------------------------------------------------------------------
@@ -831,24 +891,42 @@ script:
           effect: ${fx_detent}
       - if:
           condition:
-            lambda: 'return !id(ui_adjust);'
+            lambda: 'return id(ui_adjust);'
           then:
-            - lambda: |-
-                if (id(ui_level) == 1) {
-                  id(light_i) = (id(light_i) + delta + 6) % 6;
-                } else {
-                  id(ui_page) = (id(ui_page) + delta + 6) % 6;
-                }
-            - script.execute: show_page
-          else:
             - script.execute: adjust_timeout
             - lambda: 'id(last_turn_ms) = millis();'
             - script.execute:
                 id: value_move
                 delta: !lambda 'return delta;'
+          else:
+            - if:
+                condition:
+                  lambda: 'return id(ui_level) == 1;'
+                then:
+                  # Walking Home Assistant's own list, so the knob never
+                  # holds a copy of it.
+                  - if:
+                      condition:
+                        lambda: 'return delta > 0;'
+                      then:
+                        - homeassistant.action:
+                            action: input_select.select_next
+                            data:
+                              entity_id: ${plist_ent}
+                              cycle: "true"
+                      else:
+                        - homeassistant.action:
+                            action: input_select.select_previous
+                            data:
+                              entity_id: ${plist_ent}
+                              cycle: "true"
+                else:
+                  - lambda: 'id(ui_page) = (id(ui_page) + delta + 7) % 7;'
+                  - script.execute: show_page
 
-  # One detent in SET. Percent values accelerate on detent spacing: a slow
-  # turn steps 1%, a quick one 2%, a spin 5%.
+  # One detent in SET. Percent values accelerate on the RUN, not just the
+  # gap: consecutive detents inside 300 ms grow a streak, and the step
+  # climbs 1 - 2 - 4 - 7 - 10 as it lengthens. A fast flick doubles it.
   - id: value_move
     parameters:
       delta: int
@@ -857,36 +935,7 @@ script:
     then:
       - if:
           condition:
-            lambda: 'return id(ui_level) == 1 && id(light_i) != 0;'
-          then:
-            - lambda: |-
-                uint32_t now = millis();
-                uint32_t dt = now - id(last_step_ms);
-                id(last_step_ms) = now;
-                int step = (dt < 70) ? 5 : (dt < 150 ? 2 : 1);
-                int b;
-                switch (id(light_i)) {
-                  case 2:  b = id(wave_pct);  break;
-                  case 3:  b = id(beds_pct);  break;
-                  case 4:  b = id(tomer_pct); break;
-                  case 5:  b = id(masha_pct); break;
-                  default: b = id(all_pct);   break;
-                }
-                b += delta * step;
-                if (b < 0) b = 0;
-                if (b > 100) b = 100;
-                switch (id(light_i)) {
-                  case 2:  id(wave_pct) = b;  break;
-                  case 3:  id(beds_pct) = b;  break;
-                  case 4:  id(tomer_pct) = b; break;
-                  case 5:  id(masha_pct) = b; break;
-                  default: id(all_pct) = b;   break;
-                }
-            - script.execute: paint_light
-            - script.execute: push_light
-      - if:
-          condition:
-            lambda: 'return id(ui_level) == 0 && id(ui_page) == 0;'
+            lambda: 'return id(ui_page) == 0;'
           then:
             - lambda: |-
                 float t = id(ac_target) + (delta * 0.5f);
@@ -904,7 +953,7 @@ script:
                   t: !lambda 'return id(ac_target);'
       - if:
           condition:
-            lambda: 'return id(ui_level) == 0 && id(ui_page) == 1;'
+            lambda: 'return id(ui_page) == 1;'
           then:
             - lambda: |-
                 int s = id(fan_step) + delta;
@@ -925,13 +974,50 @@ script:
                   p: !lambda 'return id(fan_step) * 100 / 6;'
       - if:
           condition:
-            lambda: 'return id(ui_level) == 0 && id(ui_page) == 3;'
+            lambda: 'return id(ui_page) == 2;'
           then:
             - lambda: |-
                 uint32_t now = millis();
                 uint32_t dt = now - id(last_step_ms);
                 id(last_step_ms) = now;
-                int step = (dt < 70) ? 5 : (dt < 150 ? 2 : 1);
+                if (dt < 300) id(spin_streak)++; else id(spin_streak) = 0;
+                int k = id(spin_streak);
+                int step = (k < 3) ? 1 : (k < 6) ? 2 : (k < 10) ? 4 : (k < 15) ? 7 : 10;
+                if (dt < 60) step *= 2;
+                if (step > 15) step = 15;
+                int b;
+                switch (id(sel_zone)) {
+                  case 1:  b = id(wave_pct);  break;
+                  case 2:  b = id(beds_pct);  break;
+                  case 3:  b = id(tomer_pct); break;
+                  case 4:  b = id(masha_pct); break;
+                  default: b = id(all_pct);   break;
+                }
+                b += delta * step;
+                if (b < 0) b = 0;
+                if (b > 100) b = 100;
+                switch (id(sel_zone)) {
+                  case 1:  id(wave_pct) = b;  break;
+                  case 2:  id(beds_pct) = b;  break;
+                  case 3:  id(tomer_pct) = b; break;
+                  case 4:  id(masha_pct) = b; break;
+                  default: id(all_pct) = b;   break;
+                }
+            - script.execute: paint_lights
+            - script.execute: push_zone
+      - if:
+          condition:
+            lambda: 'return id(ui_page) == 4;'
+          then:
+            - lambda: |-
+                uint32_t now = millis();
+                uint32_t dt = now - id(last_step_ms);
+                id(last_step_ms) = now;
+                if (dt < 300) id(spin_streak)++; else id(spin_streak) = 0;
+                int k = id(spin_streak);
+                int step = (k < 3) ? 1 : (k < 6) ? 2 : (k < 10) ? 4 : (k < 15) ? 7 : 10;
+                if (dt < 60) step *= 2;
+                if (step > 15) step = 15;
                 int v = id(vol_pct) + delta * step;
                 if (v < 0) v = 0;
                 if (v > 100) v = 100;
@@ -946,14 +1032,14 @@ script:
                 variables:
                   v: !lambda 'return id(vol_pct) / 100.0f;'
 
-  # Send the selected zone's brightness to its own entity. Zero is off - a
-  # dial wound to the floor should leave the light off, not dim-but-on.
-  - id: push_light
+  # Zero is off - a dial wound to the floor leaves the light off, not
+  # dim-but-on.
+  - id: push_zone
     mode: restart
     then:
       - if:
           condition:
-            lambda: 'return id(light_i) == 1;'
+            lambda: 'return id(sel_zone) == 0;'
           then:
             - script.execute:
                 id: push_one
@@ -961,7 +1047,7 @@ script:
                 pct: !lambda 'return id(all_pct);'
       - if:
           condition:
-            lambda: 'return id(light_i) == 2;'
+            lambda: 'return id(sel_zone) == 1;'
           then:
             - script.execute:
                 id: push_one
@@ -969,7 +1055,7 @@ script:
                 pct: !lambda 'return id(wave_pct);'
       - if:
           condition:
-            lambda: 'return id(light_i) == 3;'
+            lambda: 'return id(sel_zone) == 2;'
           then:
             - script.execute:
                 id: push_one
@@ -977,7 +1063,7 @@ script:
                 pct: !lambda 'return id(beds_pct);'
       - if:
           condition:
-            lambda: 'return id(light_i) == 4;'
+            lambda: 'return id(sel_zone) == 3;'
           then:
             - script.execute:
                 id: push_one
@@ -985,7 +1071,7 @@ script:
                 pct: !lambda 'return id(tomer_pct);'
       - if:
           condition:
-            lambda: 'return id(light_i) == 5;'
+            lambda: 'return id(sel_zone) == 4;'
           then:
             - script.execute:
                 id: push_one
@@ -1019,9 +1105,168 @@ script:
                 variables:
                   e: !lambda 'return entity;'
 
-  # Tap. The wake guard is the coffee knob's: a touch inside the first
-  # 400 ms after backlight-on is the touch that woke the glass, not a
-  # command. Turns are exempt on purpose.
+  # Tapping a zone button points the dial at it and opens SET in one act.
+  - id: pick_zone
+    parameters:
+      z: int
+    mode: restart
+    then:
+      - script.execute: screentime
+      - if:
+          condition:
+            lambda: 'return millis() - id(wake_ms) > $wake_guard_ms;'
+          then:
+            - lambda: |-
+                id(sel_zone) = z;
+                id(ui_adjust) = true;
+                id(last_step_ms) = 0;
+                id(spin_streak) = 0;
+            - script.execute:
+                id: haptic
+                effect: ${fx_set}
+            - script.execute: adjust_timeout
+            - script.execute: paint_lights
+
+  - id: toggle_zone
+    parameters:
+      z: int
+    mode: restart
+    then:
+      - script.execute: screentime
+      - lambda: 'id(sel_zone) = z;'
+      - script.execute:
+          id: haptic
+          effect: ${fx_power}
+      - if:
+          condition:
+            lambda: 'return z == 0;'
+          then:
+            - homeassistant.action:
+                action: light.toggle
+                data:
+                  entity_id: ${all_ent}
+      - if:
+          condition:
+            lambda: 'return z == 1;'
+          then:
+            - homeassistant.action:
+                action: light.toggle
+                data:
+                  entity_id: ${wave_ent}
+      - if:
+          condition:
+            lambda: 'return z == 2;'
+          then:
+            - homeassistant.action:
+                action: light.toggle
+                data:
+                  entity_id: ${beds_ent}
+      - if:
+          condition:
+            lambda: 'return z == 3;'
+          then:
+            - homeassistant.action:
+                action: light.toggle
+                data:
+                  entity_id: ${tomer_ent}
+      - if:
+          condition:
+            lambda: 'return z == 4;'
+          then:
+            - homeassistant.action:
+                action: light.toggle
+                data:
+                  entity_id: ${masha_ent}
+      - script.execute: paint_lights
+
+  # Both reading relays move together: they are one lamp per side of the
+  # same bed and nobody reaches for exactly one of them from here.
+  - id: toggle_read
+    mode: restart
+    then:
+      - script.execute: screentime
+      - if:
+          condition:
+            lambda: 'return millis() - id(wake_ms) > $wake_guard_ms;'
+          then:
+            - script.execute:
+                id: haptic
+                effect: ${fx_power}
+            - if:
+                condition:
+                  lambda: |-
+                    return id(ha_read_t).state == "on" || id(ha_read_m).state == "on";
+                then:
+                  - homeassistant.action:
+                      action: switch.turn_off
+                      data:
+                        entity_id: ${read_t_ent}
+                  - homeassistant.action:
+                      action: switch.turn_off
+                      data:
+                        entity_id: ${read_m_ent}
+                else:
+                  - homeassistant.action:
+                      action: switch.turn_on
+                      data:
+                        entity_id: ${read_t_ent}
+                  - homeassistant.action:
+                      action: switch.turn_on
+                      data:
+                        entity_id: ${read_m_ent}
+
+  # Press one of the bedside panel's own keys.
+  - id: press_key
+    parameters:
+      entity: string
+    mode: restart
+    then:
+      - script.execute: screentime
+      - if:
+          condition:
+            lambda: 'return millis() - id(wake_ms) > $wake_guard_ms;'
+          then:
+            - script.execute:
+                id: haptic
+                effect: ${fx_power}
+            - homeassistant.action:
+                action: switch.turn_on
+                data_template:
+                  entity_id: "{{ e }}"
+                variables:
+                  e: !lambda 'return entity;'
+
+  - id: play_plist
+    mode: restart
+    then:
+      # The script sets shuffle itself before building the queue, so there
+      # is deliberately no shuffle call here.
+      - homeassistant.action:
+          action: script.play_playlist_by_name
+          data:
+            player: ${music_ent}
+          data_template:
+            playlist: "{{ p }}"
+          variables:
+            p: !lambda 'return id(ha_plist).state;'
+
+  - id: toggle_set
+    mode: restart
+    then:
+      - lambda: |-
+          id(ui_adjust) = !id(ui_adjust);
+          id(last_step_ms) = 0;
+          id(spin_streak) = 0;
+      - script.execute:
+          id: haptic
+          effect: !lambda 'return id(ui_adjust) ? ${fx_set} : ${fx_out};'
+      - if:
+          condition:
+            lambda: 'return id(ui_adjust);'
+          then: [script.execute: adjust_timeout]
+      - script.execute: paint_current
+
+  # Tap on the face itself, not on a button.
   - id: on_tap
     mode: restart
     then:
@@ -1034,45 +1279,20 @@ script:
                 condition:
                   lambda: 'return id(ui_level) == 1;'
                 then:
-                  - if:
-                      condition:
-                        lambda: 'return id(light_i) == 0;'
-                      then:
-                        # BACK
-                        - lambda: 'id(ui_adjust) = false; id(ui_level) = 0;'
-                        - script.execute:
-                            id: haptic
-                            effect: ${fx_out}
-                        - script.execute: show_page
-                      else:
-                        - script.execute: toggle_set
+                  - script.execute:
+                      id: haptic
+                      effect: ${fx_power}
+                  - script.execute: play_plist
+                  - lambda: 'id(ui_level) = 0;'
+                  - script.execute: show_page
                 else:
                   - if:
                       condition:
-                        lambda: 'return id(ui_page) == 0 || id(ui_page) == 1 || id(ui_page) == 3;'
+                        lambda: |-
+                          return id(ui_page) == 0 || id(ui_page) == 1 ||
+                                 id(ui_page) == 2 || id(ui_page) == 4;
                       then:
                         - script.execute: toggle_set
-                  - if:
-                      condition:
-                        lambda: 'return id(ui_page) == 2;'
-                      then:
-                        # Into the zones, landing on ALL.
-                        - lambda: 'id(ui_level) = 1; id(light_i) = 1;'
-                        - script.execute:
-                            id: haptic
-                            effect: ${fx_set}
-                        - script.execute: show_page
-                  - if:
-                      condition:
-                        lambda: 'return id(ui_page) == 4;'
-                      then:
-                        - script.execute:
-                            id: haptic
-                            effect: ${fx_power}
-                        - homeassistant.action:
-                            action: switch.toggle
-                            data:
-                              entity_id: ${closet_sw}
                   - if:
                       condition:
                         lambda: 'return id(ui_page) == 5;'
@@ -1083,45 +1303,35 @@ script:
                         - homeassistant.action:
                             action: switch.toggle
                             data:
+                              entity_id: ${closet_sw}
+                  - if:
+                      condition:
+                        lambda: 'return id(ui_page) == 6;'
+                      then:
+                        - script.execute:
+                            id: haptic
+                            effect: ${fx_power}
+                        - homeassistant.action:
+                            action: switch.toggle
+                            data:
                               entity_id: ${bath_sw}
-
-  - id: toggle_set
-    mode: restart
-    then:
-      - lambda: |-
-          id(ui_adjust) = !id(ui_adjust);
-          id(last_step_ms) = 0;
-      - script.execute:
-          id: haptic
-          effect: !lambda 'return id(ui_adjust) ? ${fx_set} : ${fx_out};'
-      - if:
-          condition:
-            lambda: 'return id(ui_adjust);'
-          then: [script.execute: adjust_timeout]
-      - script.execute: paint_current
 
   - id: on_hold
     mode: restart
     then:
       - script.execute: screentime
-      - lambda: 'id(ui_adjust) = false;'
       - if:
           condition:
             lambda: 'return id(ui_level) == 1;'
           then:
-            - if:
-                condition:
-                  lambda: 'return id(light_i) != 0;'
-                then:
-                  - script.execute:
-                      id: haptic
-                      effect: ${fx_power}
-                  - script.execute: hold_toggle_light
-                else:
-                  - script.execute:
-                      id: haptic
-                      effect: ${fx_refuse}
+            # Second way out of the playlist page, besides its BACK button.
+            - lambda: 'id(ui_level) = 0;'
+            - script.execute:
+                id: haptic
+                effect: ${fx_out}
+            - script.execute: show_page
           else:
+            - lambda: 'id(ui_adjust) = false;'
             - if:
                 condition:
                   lambda: 'return id(ui_page) == 0;'
@@ -1148,17 +1358,12 @@ script:
                 condition:
                   lambda: 'return id(ui_page) == 2;'
                 then:
-                  # The whole room, one hold.
                   - script.execute:
-                      id: haptic
-                      effect: ${fx_power}
-                  - homeassistant.action:
-                      action: light.toggle
-                      data:
-                        entity_id: ${all_ent}
+                      id: toggle_zone
+                      z: !lambda 'return id(sel_zone);'
             - if:
                 condition:
-                  lambda: 'return id(ui_page) == 3;'
+                  lambda: 'return id(ui_page) == 4;'
                 then:
                   - script.execute:
                       id: haptic
@@ -1169,61 +1374,16 @@ script:
                         entity_id: ${music_ent}
             - if:
                 condition:
-                  lambda: 'return id(ui_page) >= 4;'
+                  lambda: 'return id(ui_page) == 3 || id(ui_page) >= 5;'
                 then:
                   - script.execute:
                       id: haptic
                       effect: ${fx_refuse}
 
-  - id: hold_toggle_light
-    mode: restart
-    then:
-      - if:
-          condition:
-            lambda: 'return id(light_i) == 1;'
-          then:
-            - homeassistant.action:
-                action: light.toggle
-                data:
-                  entity_id: ${all_ent}
-      - if:
-          condition:
-            lambda: 'return id(light_i) == 2;'
-          then:
-            - homeassistant.action:
-                action: light.toggle
-                data:
-                  entity_id: ${wave_ent}
-      - if:
-          condition:
-            lambda: 'return id(light_i) == 3;'
-          then:
-            - homeassistant.action:
-                action: light.toggle
-                data:
-                  entity_id: ${beds_ent}
-      - if:
-          condition:
-            lambda: 'return id(light_i) == 4;'
-          then:
-            - homeassistant.action:
-                action: light.toggle
-                data:
-                  entity_id: ${tomer_ent}
-      - if:
-          condition:
-            lambda: 'return id(light_i) == 5;'
-          then:
-            - homeassistant.action:
-                action: light.toggle
-                data:
-                  entity_id: ${masha_ent}
-
 # =============================================================================
-# FACE - one page per card, each with its own background, icon and colour, so
-# the card reads off the glass before any text does. Geometry: ring r = 160
-# stroke 10 inside the 172 safe radius; icon 44 px top, name under it, value
-# 60 px centre, one detail line below.
+# FACE - one page per card, each with its own background, icon and colour.
+# Ring r = 160 stroke 10 inside the 172 safe radius. LIGHTS, SCENES and MUSIC
+# carry round on-glass buttons, the coffee knob's idiom.
 # =============================================================================
 lvgl:
   id: my_lvgl
@@ -1340,14 +1500,14 @@ lvgl:
             align: CENTER
             y: 76
 
-    # ---------------- LIGHTS folder - warm amber ----------------
+    # ---------------- LIGHTS - the whole room on one card ----------------
     - id: page_lights
       bg_color: 0x1A1206
       on_short_click: [script.execute: on_tap]
       on_long_press: [script.execute: on_hold]
       widgets:
         - arc:
-            id: arc_lts
+            id: arc_lt
             align: CENTER
             width: 328
             height: 328
@@ -1364,31 +1524,247 @@ lvgl:
               arc_color: 0xFFB558
               arc_width: 10
         - label:
-            text: "󱁑"
-            text_font: mdi_44
-            text_color: 0xFFB558
-            align: CENTER
-            y: -100
-        - label:
-            text: "LIGHTS"
+            id: name_lt
+            text: "ALL"
             text_font: label_28
             text_color: 0x8C6A35
             text_letter_space: 3
             align: CENTER
-            y: -56
+            y: -118
         - label:
-            id: val_lts
+            id: val_lt
             text: "--"
             text_font: value_60
             text_color: 0xFFB558
             align: CENTER
-            y: 8
-        - label:
-            text: "5 ZONES"
-            text_font: label_28
-            text_color: 0x8C6A35
+            y: -62
+        # Row 1: ALL, WAVE, BED. Tap points the dial here and opens SET;
+        # hold toggles the zone outright.
+        - button:
+            id: btn_all
             align: CENTER
-            y: 76
+            x: -70
+            y: 12
+            width: 58
+            height: 58
+            radius: 29
+            bg_color: 0x241804
+            border_width: 3
+            border_color: 0x4A340E
+            on_short_click:
+              - script.execute:
+                  id: pick_zone
+                  z: 0
+            on_long_press:
+              - script.execute:
+                  id: toggle_zone
+                  z: 0
+            widgets:
+              - label:
+                  text: "ALL"
+                  text_font: label_18
+                  text_color: 0xFFD9A0
+                  align: CENTER
+        - button:
+            id: btn_wave
+            align: CENTER
+            x: 0
+            y: 12
+            width: 58
+            height: 58
+            radius: 29
+            bg_color: 0x241804
+            border_width: 3
+            border_color: 0x4A340E
+            on_short_click:
+              - script.execute:
+                  id: pick_zone
+                  z: 1
+            on_long_press:
+              - script.execute:
+                  id: toggle_zone
+                  z: 1
+            widgets:
+              - label:
+                  text: "WAVE"
+                  text_font: label_18
+                  text_color: 0xFFD9A0
+                  align: CENTER
+        - button:
+            id: btn_bed
+            align: CENTER
+            x: 70
+            y: 12
+            width: 58
+            height: 58
+            radius: 29
+            bg_color: 0x241804
+            border_width: 3
+            border_color: 0x4A340E
+            on_short_click:
+              - script.execute:
+                  id: pick_zone
+                  z: 2
+            on_long_press:
+              - script.execute:
+                  id: toggle_zone
+                  z: 2
+            widgets:
+              - label:
+                  text: "BED"
+                  text_font: label_18
+                  text_color: 0xFFD9A0
+                  align: CENTER
+        # Row 2: the two nightstand strips and the pair of reading relays.
+        - button:
+            id: btn_tom
+            align: CENTER
+            x: -70
+            y: 80
+            width: 58
+            height: 58
+            radius: 29
+            bg_color: 0x241804
+            border_width: 3
+            border_color: 0x4A340E
+            on_short_click:
+              - script.execute:
+                  id: pick_zone
+                  z: 3
+            on_long_press:
+              - script.execute:
+                  id: toggle_zone
+                  z: 3
+            widgets:
+              - label:
+                  text: "TOM"
+                  text_font: label_18
+                  text_color: 0xFFD9A0
+                  align: CENTER
+        - button:
+            id: btn_mash
+            align: CENTER
+            x: 0
+            y: 80
+            width: 58
+            height: 58
+            radius: 29
+            bg_color: 0x241804
+            border_width: 3
+            border_color: 0x4A340E
+            on_short_click:
+              - script.execute:
+                  id: pick_zone
+                  z: 4
+            on_long_press:
+              - script.execute:
+                  id: toggle_zone
+                  z: 4
+            widgets:
+              - label:
+                  text: "MASH"
+                  text_font: label_18
+                  text_color: 0xFFD9A0
+                  align: CENTER
+        - button:
+            id: btn_read
+            align: CENTER
+            x: 70
+            y: 80
+            width: 58
+            height: 58
+            radius: 29
+            bg_color: 0x241804
+            border_width: 3
+            border_color: 0x4A340E
+            on_short_click: [script.execute: toggle_read]
+            on_long_press: [script.execute: toggle_read]
+            widgets:
+              - label:
+                  text: "READ"
+                  text_font: label_18
+                  text_color: 0xFFD9A0
+                  align: CENTER
+
+    # ---------------- SCENES - the panel's own keys ----------------
+    - id: page_scenes
+      bg_color: 0x140F1F
+      on_short_click: [script.execute: on_tap]
+      on_long_press: [script.execute: on_hold]
+      widgets:
+        - label:
+            text: "SCENES"
+            text_font: label_28
+            text_color: 0x625490
+            text_letter_space: 3
+            align: CENTER
+            y: -118
+        - button:
+            align: CENTER
+            x: -92
+            y: -10
+            width: 80
+            height: 80
+            radius: 40
+            bg_color: 0x1C1630
+            border_width: 3
+            border_color: 0x3C3260
+            on_short_click:
+              - script.execute:
+                  id: press_key
+                  entity: ${key_night}
+            widgets:
+              - label:
+                  text: "󰖔"
+                  text_font: mdi_44
+                  text_color: 0xB79BFF
+                  align: CENTER
+        - button:
+            align: CENTER
+            x: 0
+            y: -10
+            width: 80
+            height: 80
+            radius: 40
+            bg_color: 0x1C1630
+            border_width: 3
+            border_color: 0x3C3260
+            on_short_click:
+              - script.execute:
+                  id: press_key
+                  entity: ${key_morning}
+            widgets:
+              - label:
+                  text: "󰖨"
+                  text_font: mdi_44
+                  text_color: 0xFFD97A
+                  align: CENTER
+        - button:
+            align: CENTER
+            x: 92
+            y: -10
+            width: 80
+            height: 80
+            radius: 40
+            bg_color: 0x1C1630
+            border_width: 3
+            border_color: 0x3C3260
+            on_short_click:
+              - script.execute:
+                  id: press_key
+                  entity: ${key_alloff}
+            widgets:
+              - label:
+                  text: "󰐥"
+                  text_font: mdi_44
+                  text_color: 0xFF8A80
+                  align: CENTER
+        - label:
+            text: "NIGHT     MORNING     OFF"
+            text_font: label_18
+            text_color: 0x625490
+            align: CENTER
+            y: 58
 
     # ---------------- MUSIC - rose ----------------
     - id: page_music
@@ -1414,32 +1790,111 @@ lvgl:
               arc_color: 0xF06292
               arc_width: 10
         - label:
-            text: "󰝚"
-            text_font: mdi_44
-            text_color: 0xF06292
-            align: CENTER
-            y: -100
-        - label:
             text: "MUSIC"
             text_font: label_28
             text_color: 0x8C4A62
             text_letter_space: 3
             align: CENTER
-            y: -56
+            y: -116
         - label:
             id: val_mus
             text: "--"
             text_font: value_60
             text_color: 0xF06292
             align: CENTER
-            y: 8
+            y: -58
         - label:
             id: sub_mus
             text: ""
-            text_font: label_28
+            text_font: label_18
             text_color: 0x8C4A62
             align: CENTER
-            y: 76
+            y: -6
+        - button:
+            align: CENTER
+            x: -78
+            y: 70
+            width: 66
+            height: 66
+            radius: 33
+            bg_color: 0x2A141C
+            border_width: 3
+            border_color: 0x4A2432
+            on_short_click:
+              - script.execute: screentime
+              - if:
+                  condition:
+                    lambda: 'return millis() - id(wake_ms) > $wake_guard_ms;'
+                  then:
+                    - lambda: 'id(ui_level) = 1; id(ui_adjust) = false;'
+                    - script.execute:
+                        id: haptic
+                        effect: ${fx_set}
+                    - script.execute: show_page
+            widgets:
+              - label:
+                  text: "󰲸"
+                  text_font: mdi_44
+                  text_color: 0xF06292
+                  align: CENTER
+        - button:
+            align: CENTER
+            x: 0
+            y: 70
+            width: 66
+            height: 66
+            radius: 33
+            bg_color: 0x2A141C
+            border_width: 3
+            border_color: 0x4A2432
+            on_short_click:
+              - script.execute: screentime
+              - if:
+                  condition:
+                    lambda: 'return millis() - id(wake_ms) > $wake_guard_ms;'
+                  then:
+                    - script.execute:
+                        id: haptic
+                        effect: ${fx_power}
+                    - homeassistant.action:
+                        action: media_player.media_play_pause
+                        data:
+                          entity_id: ${music_ent}
+            widgets:
+              - label:
+                  text: "󰐎"
+                  text_font: mdi_44
+                  text_color: 0xF06292
+                  align: CENTER
+        - button:
+            align: CENTER
+            x: 78
+            y: 70
+            width: 66
+            height: 66
+            radius: 33
+            bg_color: 0x2A141C
+            border_width: 3
+            border_color: 0x4A2432
+            on_short_click:
+              - script.execute: screentime
+              - if:
+                  condition:
+                    lambda: 'return millis() - id(wake_ms) > $wake_guard_ms;'
+                  then:
+                    - script.execute:
+                        id: haptic
+                        effect: ${fx_power}
+                    - homeassistant.action:
+                        action: media_player.media_next_track
+                        data:
+                          entity_id: ${music_ent}
+            widgets:
+              - label:
+                  text: "󰒭"
+                  text_font: mdi_44
+                  text_color: 0xF06292
+                  align: CENTER
 
     # ---------------- CLOSET - violet ----------------
     - id: page_closet
@@ -1529,67 +1984,63 @@ lvgl:
             align: CENTER
             y: 8
 
-    # ---------------- zone card, shared by all five zones ----------------
-    - id: page_light
-      bg_color: 0x1A1206
+    # ---------------- playlist sub-page ----------------
+    # Turn walks Home Assistant's list, tap the face plays, and there are
+    # two ways back: the BACK button and a hold anywhere.
+    - id: page_plist
+      bg_color: 0x1A0D12
       on_short_click: [script.execute: on_tap]
       on_long_press: [script.execute: on_hold]
       widgets:
-        - arc:
-            id: arc_lt
-            align: CENTER
-            width: 328
-            height: 328
-            start_angle: 110
-            end_angle: 70
-            min_value: 0
-            max_value: 100
-            value: 0
-            adjustable: false
-            clickable: false
-            arc_width: 10
-            arc_color: 0x3A2A10
-            indicator:
-              arc_color: 0xFFB558
-              arc_width: 10
         - label:
-            text: "󱁑"
+            text: "󰲸"
             text_font: mdi_44
-            text_color: 0xFFB558
+            text_color: 0xF06292
             align: CENTER
-            y: -100
+            y: -110
         - label:
-            id: name_lt
-            text: "ALL"
-            text_font: label_28
-            text_color: 0x8C6A35
+            text: "PLAYLIST"
+            text_font: label_18
+            text_color: 0x8C4A62
             text_letter_space: 3
             align: CENTER
-            y: -56
+            y: -66
         - label:
-            id: val_lt
+            id: name_pl
             text: "--"
-            text_font: value_60
-            text_color: 0xFFB558
-            align: CENTER
-            y: 8
-
-    # ---------------- BACK ----------------
-    - id: page_back
-      bg_color: 0x1A1206
-      on_short_click: [script.execute: on_tap]
-      on_long_press: [script.execute: on_hold]
-      widgets:
-        - label:
-            text: "󰁍"
-            text_font: mdi_44
-            text_color: 0xFFB558
-            align: CENTER
-            y: -30
-        - label:
-            text: "BACK"
             text_font: label_28
-            text_color: 0x8C6A35
-            text_letter_space: 3
+            text_color: 0xF06292
             align: CENTER
-            y: 30
+            y: -12
+            width: 300
+            long_mode: DOT
+            text_align: CENTER
+        - label:
+            text: "TAP TO PLAY"
+            text_font: label_18
+            text_color: 0x8C4A62
+            align: CENTER
+            y: 34
+        - button:
+            align: CENTER
+            x: 0
+            y: 104
+            width: 66
+            height: 66
+            radius: 33
+            bg_color: 0x2A141C
+            border_width: 3
+            border_color: 0x4A2432
+            on_short_click:
+              - script.execute: screentime
+              - lambda: 'id(ui_level) = 0;'
+              - script.execute:
+                  id: haptic
+                  effect: ${fx_out}
+              - script.execute: show_page
+            widgets:
+              - label:
+                  text: "󰁍"
+                  text_font: mdi_44
+                  text_color: 0xCFCFCF
+                  align: CENTER
