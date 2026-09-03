@@ -1,0 +1,72 @@
+# aisdlc.yml — enrollment config for bedside-knob.
+# See aisdlc/docs/DESIGN.md ("Enrollment contract") and
+# aisdlc/enroll/aisdlc.example.yml for the full schema.
+#
+# This is the first firmware repo in the pipeline. It has no service to
+# roll and no URL to poll: it deploys by flashing an ESP32-S3 over the air.
+# The fields the release engine expects from a web service are null here on
+# purpose, and the flash is not run by a crew — see "flashing" below.
+
+repo: bedside-knob
+
+# A side project. Nothing here holds data, and the blast radius of a bad
+# change is a knob that behaves oddly until the next flash.
+criticality: low
+
+# Validates the ESPHome YAML: schema, pin map, LVGL widget tree, and the
+# external component pulled from GitHub. Does not compile and does not need
+# the ESP-IDF toolchain, so it runs anywhere the crew does.
+test_command: "python -m esphome config firmware/bedside-knob.yaml"
+
+# No linter for a single ESPHome YAML. This is a decision, not a gap.
+lint_command: ""
+
+# Nothing to roll. The deployable artifact is a firmware image on a device,
+# not a container.
+services: []
+
+# The device's health surface is binary_sensor.bedside_knob_status in Home
+# Assistant, not an HTTP endpoint. Nothing for the release engine to poll.
+healthcheck_url: null
+
+# WiFi credentials. Gitignored, present only on the flashing machine, and a
+# crew must never read, write, or commit this file.
+data_paths:
+  - "firmware/secrets.yaml"
+
+# Firmware has no migrations.
+migration_paths: []
+
+# The knob reports its build through Home Assistant's device registry
+# (sw_version), not through an endpoint this repo serves.
+version_surface:
+  http_endpoint: null
+  mcp_tool: null
+
+# No feature flags. Behaviour that needs to change without a reflash lives
+# in Home Assistant instead — playlist names in an input_select, scene keys
+# on the Vitrea panel.
+feature_flag_config: null
+
+# ---------------------------------------------------------------------------
+# flashing
+#
+# Crews build, test, review and merge. They do not flash. The flash is run
+# separately against the merged main, because it needs three things a crew
+# does not have and cannot discover from this repo:
+#
+#   1. PowerShell. The ESP-IDF installer refuses to run under MSys/MinGW,
+#      which is what a Git Bash shell gives it.
+#   2. ESPHOME_ESP_IDF_PREFIX=C:\ei — the existing toolchain. The default
+#      path lands inside the MSIX package overlay, which both breaks the
+#      260-character Windows path limit and is invisible to a normal shell.
+#   3. The device on the network at 192.168.68.80.
+#
+# The command, from the repo root:
+#
+#   $env:ESPHOME_ESP_IDF_PREFIX = 'C:\ei'
+#   python -m esphome run firmware\bedside-knob.yaml --device 192.168.68.80 --no-logs
+#
+# Verify against the device, not the uploader: binary_sensor.bedside_knob_status
+# returns to "on" within seconds of the OTA reboot.
+# ---------------------------------------------------------------------------
