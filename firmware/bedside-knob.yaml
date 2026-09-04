@@ -120,6 +120,14 @@ api:
 ota:
   - platform: esphome
 
+# The night rule needs a wall clock. Home Assistant's, so the knob and the
+# house agree on when 22:00 is. Before the first sync now() is invalid, and
+# every night test below reads that as night - the safe direction, and the
+# same call the closet knob's automation makes.
+time:
+  - platform: homeassistant
+    id: ha_time
+
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
@@ -195,6 +203,11 @@ light:
           id(screen_on) = false;
           id(ui_adjust) = false;
           id(ui_level) = 0;
+          // A zone picked in the evening must not still be picked at 3am. An
+          // explicit selection escapes the night rule, so leaving it set is a
+          // hole the size of the rule itself: one sleepy turn on a stale WAVE
+          // selection lights the panel over a sleeping head.
+          id(sel_zone) = 0;
       - lvgl.pause:
           show_snow: false
     on_turn_on:
@@ -284,6 +297,13 @@ globals:
     type: int
     restore_value: false
     initial_value: '0'
+  # Direction of the detent being pushed out right now. The night rule needs
+  # it: turning up may wake a dark strip to a glow, turning down may never
+  # wake anything, so a downward spin can never light the room.
+  - id: turn_up
+    type: bool
+    restore_value: false
+    initial_value: 'true'
   - id: ac_target
     type: float
     restore_value: false
@@ -977,14 +997,17 @@ script:
             lambda: 'return id(ui_page) == 2;'
           then:
             - lambda: |-
-                uint32_t now = millis();
-                uint32_t dt = now - id(last_step_ms);
-                id(last_step_ms) = now;
-                if (dt < 300) id(spin_streak)++; else id(spin_streak) = 0;
-                int k = id(spin_streak);
-                int step = (k < 3) ? 1 : (k < 6) ? 2 : (k < 10) ? 4 : (k < 15) ? 7 : 10;
-                if (dt < 60) step *= 2;
-                if (step > 15) step = 15;
+                // 20 points per detent, flat. The closet knob dims these same
+                // strips and was tuned to 20 after 10 "took too many detents to
+                // get anywhere"; there is no reason for the two knobs on one
+                // room to disagree. Five detents cross the range, so no ramp is
+                // needed and none is wanted - acceleration on top of 20 would
+                // make the dial impossible to place.
+                //
+                // The floor is 5, not 0: the dial dims toward a glow and never
+                // switches a light off. Switching off is the hold gesture, and
+                // keeping the two apart is what lets the floor be unconditional.
+                id(last_step_ms) = millis();
                 int b;
                 switch (id(sel_zone)) {
                   case 1:  b = id(wave_pct);  break;
@@ -993,8 +1016,8 @@ script:
                   case 4:  b = id(masha_pct); break;
                   default: b = id(all_pct);   break;
                 }
-                b += delta * step;
-                if (b < 0) b = 0;
+                b += delta * 20;
+                if (b < 5) b = 5;
                 if (b > 100) b = 100;
                 switch (id(sel_zone)) {
                   case 1:  id(wave_pct) = b;  break;
@@ -1003,6 +1026,7 @@ script:
                   case 4:  id(masha_pct) = b; break;
                   default: id(all_pct) = b;   break;
                 }
+                id(turn_up) = (delta > 0);
             - script.execute: paint_lights
             - script.execute: push_zone
       - if:
@@ -1034,17 +1058,49 @@ script:
 
   # Zero is off - a dial wound to the floor leaves the light off, not
   # dim-but-on.
+  # Between 22:00 and 06:00 a plain turn moves two strips and leaves the other
+  # two alone. The Wave lights the whole room and Masha's strip hangs over a
+  # sleeping head; neither is reachable from an undirected turn at night. Both
+  # stay reachable by selecting the zone, which is a deliberate act - and the
+  # selection is wiped on sleep, so it cannot survive the evening.
   - id: push_zone
     mode: restart
     then:
+      # ALL, by day: ONE MULTICAST TO THE GROUP. This must stay a group call.
+      # The closet knob learned the hard way that stepping these strips as
+      # separate unicasts drops all but the first on this mesh - the fix there
+      # was a multicast, and the weak-link diagnosis was wrong.
       - if:
           condition:
-            lambda: 'return id(sel_zone) == 0;'
+            lambda: |-
+              auto t = id(ha_time).now();
+              return id(sel_zone) == 0 && t.is_valid() && t.hour >= 6 && t.hour < 22;
           then:
             - script.execute:
                 id: push_one
                 entity: ${all_ent}
                 pct: !lambda 'return id(all_pct);'
+                st:  !lambda 'return id(ha_all_st).state;'
+      # ALL, at night: the group call cannot express "leave those two alone",
+      # because brightness_pct is move-to-level-with-on-off and would wake them.
+      # Serialised unicasts are safe here for the reason they are safe on the
+      # closet knob: at night typically one strip is lit, so one command goes.
+      - if:
+          condition:
+            lambda: |-
+              auto t = id(ha_time).now();
+              return id(sel_zone) == 0 && (!t.is_valid() || t.hour >= 22 || t.hour < 6);
+          then:
+            - script.execute:
+                id: push_one
+                entity: ${beds_ent}
+                pct: !lambda 'return id(all_pct);'
+                st:  !lambda 'return id(ha_beds_st).state;'
+            - script.execute:
+                id: push_one
+                entity: ${tomer_ent}
+                pct: !lambda 'return id(all_pct);'
+                st:  !lambda 'return id(ha_tomer_st).state;'
       - if:
           condition:
             lambda: 'return id(sel_zone) == 1;'
@@ -1053,6 +1109,7 @@ script:
                 id: push_one
                 entity: ${wave_ent}
                 pct: !lambda 'return id(wave_pct);'
+                st:  !lambda 'return id(ha_wave_st).state;'
       - if:
           condition:
             lambda: 'return id(sel_zone) == 2;'
@@ -1061,6 +1118,7 @@ script:
                 id: push_one
                 entity: ${beds_ent}
                 pct: !lambda 'return id(beds_pct);'
+                st:  !lambda 'return id(ha_beds_st).state;'
       - if:
           condition:
             lambda: 'return id(sel_zone) == 3;'
@@ -1069,6 +1127,7 @@ script:
                 id: push_one
                 entity: ${tomer_ent}
                 pct: !lambda 'return id(tomer_pct);'
+                st:  !lambda 'return id(ha_tomer_st).state;'
       - if:
           condition:
             lambda: 'return id(sel_zone) == 4;'
@@ -1077,17 +1136,28 @@ script:
                 id: push_one
                 entity: ${masha_ent}
                 pct: !lambda 'return id(masha_pct);'
+                st:  !lambda 'return id(ha_masha_st).state;'
 
+  # One strip, one absolute target. Absolute rather than brightness_step_pct:
+  # a relative step asks the bulb to move itself, and the weakest of these
+  # applied a fraction of each request and drifted out of sync. A computed
+  # target that lands is exact, and one that is lost is corrected by the next
+  # detent rather than accumulating wrong.
+  #
+  # This never turns a light off. The dial floors at 5% and dims toward a glow;
+  # off is the hold gesture. And it never wakes a dark strip on a downward
+  # turn, at any hour, so a downward spin can never light the room.
   - id: push_one
     parameters:
       entity: string
       pct: int
+      st: string
     mode: parallel
     max_runs: 8
     then:
       - if:
           condition:
-            lambda: 'return pct > 0;'
+            lambda: 'return st == "on" || id(turn_up);'
           then:
             - homeassistant.action:
                 action: light.turn_on
@@ -1096,14 +1166,17 @@ script:
                   brightness_pct: "{{ p }}"
                 variables:
                   e: !lambda 'return entity;'
-                  p: !lambda 'return pct;'
-          else:
-            - homeassistant.action:
-                action: light.turn_off
-                data_template:
-                  entity_id: "{{ e }}"
-                variables:
-                  e: !lambda 'return entity;'
+                  # Waking a dark strip at night brings it up at a glow rather
+                  # than jumping to the full step, so the first thing a hand
+                  # finds in the dark is not the room at 80%.
+                  p: !lambda |-
+                      auto t = id(ha_time).now();
+                      bool night = !t.is_valid() || t.hour >= 22 || t.hour < 6;
+                      if (st != "on" && night) return 5;
+                      int p = pct;
+                      if (p < 5) p = 5;
+                      if (p > 100) p = 100;
+                      return p;
 
   # Tapping a zone button points the dial at it and opens SET in one act.
   - id: pick_zone
