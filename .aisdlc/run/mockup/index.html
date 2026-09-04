@@ -1,0 +1,103 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>An off card must not show a full ring — bedside knob #3</title>
+<link rel="stylesheet" href="face.css">
+<div class="wrap">
+
+<h1>Issue #3 — an off card must not show a full ring</h1>
+<p class="note">Every face on these pages is drawn from the constants in
+<code>firmware/bedside-knob.yaml</code>: page background, arc r&nbsp;=&nbsp;159 at stroke 10
+sweeping 320&deg; from 110&deg;, and the four text slots at y&nbsp;=&nbsp;&minus;100&nbsp;/&nbsp;&minus;56&nbsp;/&nbsp;+8&nbsp;/&nbsp;+76.
+The <b>today</b> faces are a redraw of what the file does now, not a photograph &mdash;
+the knob is not attached to this session. The two 44&nbsp;px icons are hand-drawn stand-ins
+for the MDI glyphs; position, size and colour are the real ones.</p>
+
+<nav>
+  <a href="index.html">The argument</a>
+  <a href="01-today.html">01 &mdash; today</a>
+  <a href="02-ac.html">02 &mdash; AC, after</a>
+  <a href="03-fan.html">03 &mdash; FAN, after</a>
+  <a href="04-edges.html">04 &mdash; edges</a>
+</nav>
+
+<h2>The argument</h2>
+<p class="note">Left is the AC card with the air conditioner <b>off</b>, today. Right is
+the same state after. Nothing in the middle of the card changed &mdash; both say
+<code>OFF</code>. The difference is that one of them has a full-length ring in the card's
+own hue at the card's own radius, and hue and shape reach the eye before a word does.</p>
+
+<div class="grid">
+
+  <figure class="bad">
+    <div class="face ac">
+      <svg class="ring" viewBox="0 0 360 360">
+        <circle class="trk" cx="180" cy="180" r="159" stroke-dasharray="888.02 111.01" transform="rotate(110 180 180)"/>
+      </svg>
+      <div class="icon"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 1.5v21M2.9 6.75l18.2 10.5M2.9 17.25 21.1 6.75"/><path d="m8.8 3.9 3.2 1.9 3.2-1.9M8.8 20.1l3.2-1.9 3.2 1.9M4.35 10.2l-.5-3.7 3.6-.9M19.65 13.8l.5 3.7-3.6.9M4.35 13.8l-.5 3.7 3.6.9M19.65 10.2l.5-3.7-3.6-.9"/></svg></div>
+      <div class="name">AC</div>
+      <div class="val">OFF</div>
+      <div class="sub"></div>
+    </div>
+    <figcaption><span class="cn">Today &mdash; AC off</span>
+    The indicator is zero-length, so the track is the only thing left, and the track is a
+    full ring in <code>#16324A</code>. Off and full differ in the brightness of one
+    identical shape.</figcaption>
+  </figure>
+
+  <figure class="good">
+    <div class="face ac">
+      <svg class="ring" viewBox="0 0 360 360"></svg>
+      <div class="icon"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 1.5v21M2.9 6.75l18.2 10.5M2.9 17.25 21.1 6.75"/><path d="m8.8 3.9 3.2 1.9 3.2-1.9M8.8 20.1l3.2-1.9 3.2 1.9M4.35 10.2l-.5-3.7 3.6-.9M19.65 13.8l.5 3.7-3.6.9M4.35 13.8l-.5 3.7 3.6.9M19.65 10.2l.5-3.7-3.6-.9"/></svg></div>
+      <div class="name">AC</div>
+      <div class="val">OFF</div>
+      <div class="sub"></div>
+    </div>
+    <figcaption><span class="cn">After &mdash; AC off</span>
+    No ring. Nothing circular, nothing at the rim, nothing in the hue except the icon and
+    the word. The card is quiet because the thing is quiet.</figcaption>
+  </figure>
+
+</div>
+
+<h2>The rule</h2>
+<p class="note" style="max-width:640px"><b>A track is only ever drawn under an indicator.</b>
+The dark ring is not a frame. Its one job is to give the bright ring a scale to be a
+fraction of &mdash; and drawn alone it stops being a track and becomes a claim. So off
+draws no ring at all, and on draws both, with the indicator floored to a length that
+cannot be mistaken for absence.</p>
+
+<h2>At the size and distance it is actually read</h2>
+<p class="note">The panel is 40&nbsp;mm across on a nightstand. Below, each face at roughly a
+third &mdash; about what the eye resolves from the pillow, before focus. This is the test
+the card has to pass, and it is the one the word <code>OFF</code> is no help in.</p>
+
+<div class="stripwrap">
+  <div>
+    <div class="strip">
+      <div class="shrink"><div class="face ac"><svg class="ring" viewBox="0 0 360 360"><circle class="trk" cx="180" cy="180" r="159" stroke-dasharray="888.02 111.01" transform="rotate(110 180 180)"/></svg><div class="name">AC</div><div class="val">OFF</div></div></div>
+      <div class="shrink"><div class="face ac"><svg class="ring" viewBox="0 0 360 360"><circle class="trk" cx="180" cy="180" r="159" stroke-dasharray="888.02 111.01" transform="rotate(110 180 180)"/><circle class="ind" cx="180" cy="180" r="159" stroke-dasharray="888.02 111.01" transform="rotate(110 180 180)"/></svg><div class="name">AC</div><div class="val">30.0</div></div></div>
+    </div>
+    <div class="strip">
+      <div class="striplab">off, today</div>
+      <div class="striplab">30.0 &deg;C</div>
+    </div>
+  </div>
+  <div style="margin-left:34px">
+    <div class="strip">
+      <div class="shrink"><div class="face ac"><svg class="ring" viewBox="0 0 360 360"></svg><div class="name">AC</div><div class="val">OFF</div></div></div>
+      <div class="shrink"><div class="face ac"><svg class="ring" viewBox="0 0 360 360"><circle class="trk" cx="180" cy="180" r="159" stroke-dasharray="888.02 111.01" transform="rotate(110 180 180)"/><circle class="ind" cx="180" cy="180" r="159" stroke-dasharray="71.04 927.99" transform="rotate(110 180 180)"/></svg><div class="name">AC</div><div class="val">16.0</div></div></div>
+      <div class="shrink"><div class="face ac"><svg class="ring" viewBox="0 0 360 360"><circle class="trk" cx="180" cy="180" r="159" stroke-dasharray="888.02 111.01" transform="rotate(110 180 180)"/><circle class="ind" cx="180" cy="180" r="159" stroke-dasharray="888.02 111.01" transform="rotate(110 180 180)"/></svg><div class="name">AC</div><div class="val">30.0</div></div></div>
+    </div>
+    <div class="strip">
+      <div class="striplab">off, after</div>
+      <div class="striplab">16.0 &deg;C</div>
+      <div class="striplab">30.0 &deg;C</div>
+    </div>
+  </div>
+</div>
+
+<p class="note" style="margin-top:26px">On the left pair the two faces are the same
+picture at two exposures. On the right, off is a different picture from either end of the
+range, and the shortest on-state is still unmistakably a ring that has started.</p>
+
+</div>
