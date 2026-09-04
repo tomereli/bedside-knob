@@ -378,6 +378,25 @@ sensor:
           id: knob_turn
           delta: -1
 
+  # System / battery rail. Waveshare puts it on ADC1 channel 0 - GPIO1 - behind
+  # a divide-by-three, and documents the conversion as 3.3/4096 * 3 * raw. The
+  # board carries a 1.25 mm lithium header and an onboard charger; HARDWARE.md
+  # records the header as deliberately empty, but the knob keeps running when
+  # the USB-C is pulled, so this reads what is actually on the rail.
+  - platform: adc
+    pin: GPIO1
+    id: vbat
+    name: "Supply Voltage"
+    update_interval: 30s
+    attenuation: 12db
+    accuracy_decimals: 2
+    unit_of_measurement: "V"
+    filters:
+      - multiply: 3.0
+      - sliding_window_moving_average:
+          window_size: 4
+          send_every: 2
+
   - platform: homeassistant
     id: ha_ac_target
     entity_id: ${ac_ent}
@@ -651,7 +670,7 @@ script:
       - light.turn_on:
           id: back_light
           brightness: !lambda |-
-            return id(ha_goodnight).state == "on" ? 0.03f : 0.15f;
+            return id(ha_goodnight).state == "on" ? 0.03f : 0.20f;
 
   - id: adjust_timeout
     mode: restart
