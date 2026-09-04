@@ -119,14 +119,11 @@ logger:
 
 api:
   on_client_connected:
-    - lambda: 'id(api_up) = true;'
     - delay: 2s
     - script.execute: paint_all
   on_client_disconnected:
     # The idle face is the only thing on the glass most of the night, so it is
-    # where a dead link has to show. There is no battery to report and nothing
-    # else to go wrong quietly; this is the one status worth a pixel.
-    - lambda: 'id(api_up) = false;'
+    # where a dead link has to show.
     - script.execute: paint_clock
 
 ota:
@@ -260,6 +257,9 @@ font:
       - "󰲸"
       - "󰐎"
       - "󰒭"
+      # wifi-off, for the idle face when the link to Home Assistant is down.
+      # A glyph missing from this list renders as an empty box, not as nothing.
+      - "󰤭"
       - "󰖔"
       - "󰖨"
       - "󰐥"
@@ -320,12 +320,6 @@ globals:
     type: bool
     restore_value: false
     initial_value: 'true'
-  # Whether Home Assistant is on the other end. Shown on the idle face, which
-  # is what is on the glass when nobody is touching the knob.
-  - id: api_up
-    type: bool
-    restore_value: false
-    initial_value: 'false'
   - id: ac_target
     type: float
     restore_value: false
@@ -752,9 +746,21 @@ script:
             int p = t.minute % 4;
             return (p == 2) ? 7 : (p == 0) ? -7 : 0;
       # Nothing when the link is up: the absence of a mark is the good state.
-      - lvgl.label.update:
-          id: clk_link
-          text: !lambda 'return id(api_up) ? std::string("") : std::string("󰤭");'
+      # Asked of the API server itself rather than tracked in a global: the
+      # disconnect event fires for any client, so an OTA or a log session
+      # dropping would otherwise leave the mark on while Home Assistant is
+      # perfectly connected.
+      - if:
+          condition:
+            api.connected:
+          then:
+            - lvgl.label.update:
+                id: clk_link
+                text: ""
+          else:
+            - lvgl.label.update:
+                id: clk_link
+                text: "󰤭"
       # Same rule for power. On USB the rail sits near 4.8 V and the face says
       # nothing; on the cell it drops onto the lithium curve and the face shows
       # what is left. 4.4 V is the threshold because a full cell tops at 4.2.

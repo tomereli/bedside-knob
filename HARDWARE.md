@@ -34,7 +34,8 @@ One board carries the whole device:
 | Encoder | SSCM110100, one pulse per detent, A on GPIO8 / B on GPIO7 | measured |
 | Haptics | DRV2605 @ 0x5A driving an LRA | measured |
 | Backlight | single PWM channel on GPIO47 | measured |
-| Power | USB-C, plus a 1.25 mm 2-pin 3.7 V lithium header with onboard charger | datasheet |
+| Power | USB-C, plus a 1.25 mm 2-pin 3.7 V lithium header with onboard charger — **a cell is fitted** | measured |
+| Supply sense | ADC1 channel 0 on GPIO1, divide-by-two | measured |
 | Body | CNC aluminium, 66 x 22 mm, metal ring rotates around a fixed screen | datasheet |
 
 Unused and left unused: microSD, PCM5100A DAC and 3.5 mm jack, MEMS
@@ -153,29 +154,54 @@ Devices & Services → ESPHome → Configure.
 
 ## 3. Power and sleep
 
-**Mains USB-C. No battery. No deep sleep. The display is the only thing that
-sleeps.**
+**USB-C, with a lithium cell fitted behind it. No deep sleep. The display never
+switches off — it falls back to a dim clock.**
 
 Deep sleep costs 1–2 s to wake and re-associate WiFi before the first frame
 (**estimate**, community-reported, `fast_connect` and a static IP shave part of
 it). A knob that is grabbed in the dark must answer in well under 200 ms. That
 alone settles it.
 
-The battery header is there and should stay empty. An 800 mAh cell runs an
-ESP32-S3 with WiFi associated for a handful of hours (**estimate**) — enough
-for portability, nowhere near a night of standby. A bedside device that is flat
-at 3 am is the failure this project cannot have.
+### The cell
+
+**A cell is fitted on the header.** Pulling the USB-C drops the rail from 4.75 V
+to 4.14 V and the knob keeps running without leaving the network for a single
+second — measured 2026-09-05. 4.14 V is a nearly full lithium cell; the curve in
+`firmware/bedside-knob.yaml` reads it as 94%.
+
+Runtime on the cell is unmeasured. The reasoning that argued against fitting one
+still stands as a warning rather than as a description: an 800 mAh cell runs an
+ESP32-S3 with WiFi associated for a handful of hours (**estimate**), and a
+bedside device that is flat at 3 am is the failure this project cannot have. The
+knob is not portable; the cell is a ride-through for a pulled plug, not a way to
+run untethered.
+
+`sensor.bedside_knob_supply_voltage` reads ADC1 channel 0 — GPIO1 — through a
+divide-by-two. **Not the divide-by-three in Waveshare's own note for this
+board**, which puts the same rail at 7.18 V; the coffee knob runs identical
+hardware and has been calibrated at 2.0 since it was built.
+
+The sense point sits on the system rail, after the charger, so **the cell cannot
+be read while the USB-C is connected** — the ADC then measures the charger's
+output near 4.75 V, above the top of the lithium curve, and any percentage
+derived from it clamps to 100 and means nothing. Charge state is only observable
+unplugged.
 
 So:
 
-| Awake, always | Asleep |
+| Awake, always | Idle |
 |---|---|
-| MCU, WiFi associated, API connected, entity subscriptions live | backlight, LVGL |
+| MCU, WiFi associated, API connected, entity subscriptions live, backlight, LVGL | backlight dimmed to 20%, or 3% while the Good Night key is on |
 
-Screen-off path: after the idle timeout, fade the backlight to zero and
-`lvgl.pause` — the coffee knob's `screentime` script, retimed. Wake on an
-encoder pulse or a touch. Wake latency is then the backlight fade and nothing
-else.
+Idle path: after the timeout the backlight drops and `page_clock` takes the
+glass — the coffee knob's `screentime` script, retimed and rerouted. Wake on an
+encoder pulse or a touch. Wake latency is the backlight ramp and nothing else.
+
+**The backlight no longer turns off, so `back_light.on_turn_off` no longer
+fires.** The UI state resets that used to live there — `ui_adjust`, `ui_level`
+and `sel_zone` — moved into `screentime`'s idle branch. Putting them back in the
+handler silently reopens the night-rule hole: a zone selected in the evening
+escapes the night rule and would still be selected at 3 am.
 
 Retimed for the bedroom, with the coffee knob's value beside it so the
 difference is deliberate:
