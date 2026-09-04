@@ -119,8 +119,15 @@ logger:
 
 api:
   on_client_connected:
+    - lambda: 'id(api_up) = true;'
     - delay: 2s
     - script.execute: paint_all
+  on_client_disconnected:
+    # The idle face is the only thing on the glass most of the night, so it is
+    # where a dead link has to show. There is no battery to report and nothing
+    # else to go wrong quietly; this is the one status worth a pixel.
+    - lambda: 'id(api_up) = false;'
+    - script.execute: paint_clock
 
 ota:
   - platform: esphome
@@ -132,6 +139,10 @@ ota:
 time:
   - platform: homeassistant
     id: ha_time
+    on_time:
+      - seconds: 0
+        then:
+          - script.execute: paint_clock
 
 wifi:
   ssid: !secret wifi_ssid
@@ -309,6 +320,12 @@ globals:
     type: bool
     restore_value: false
     initial_value: 'true'
+  # Whether Home Assistant is on the other end. Shown on the idle face, which
+  # is what is on the glass when nobody is touching the knob.
+  - id: api_up
+    type: bool
+    restore_value: false
+    initial_value: 'false'
   - id: ac_target
     type: float
     restore_value: false
@@ -595,15 +612,46 @@ script:
           id(ic_bus)->write(addr, w2, 2);
           id(ic_bus)->write(addr, go, 2);
 
+  # The screen no longer goes dark. It goes to the clock, dim, and stays
+  # there - the knob is mains-only with no battery, so there is nothing to
+  # save by switching it off, and a bedside device that shows the time is
+  # worth more idle than black.
+  #
+  # Everything sleep used to do on the way out still happens here, at the
+  # moment the face appears. That matters: the resets used to live in
+  # back_light.on_turn_off, and the backlight now never turns off.
   - id: screentime
     mode: restart
     then:
+      - lambda: |-
+          // Stamp the wake only on the idle -> awake edge, never on an
+          // interaction that was already awake. The 400 ms tap guard reads
+          // this, so re-stamping it on every turn would swallow every tap.
+          if (!id(screen_on)) { id(wake_ms) = millis(); }
+          id(screen_on) = true;
+      - script.execute: show_page
       - light.turn_on:
           id: back_light
           brightness: !lambda |-
             return id(ha_goodnight).state == "on" ? 0.25f : 0.85f;
       - delay: ${screen_timeout}
-      - light.turn_off: back_light
+      - lambda: |-
+          id(screen_on) = false;
+          id(ui_adjust) = false;
+          id(ui_level) = 0;
+          // A zone picked in the evening must not still be picked at 3am. An
+          // explicit selection escapes the night rule, so leaving it set is a
+          // hole the size of the rule itself: one sleepy turn on a stale WAVE
+          // selection lights the panel over a sleeping head.
+          id(sel_zone) = 0;
+      - script.execute: paint_clock
+      - lvgl.page.show: page_clock
+      # Far below the 25% the goodnight key already asks for while he is
+      # awake. This one is on all night, facing the bed.
+      - light.turn_on:
+          id: back_light
+          brightness: !lambda |-
+            return id(ha_goodnight).state == "on" ? 0.03f : 0.15f;
 
   - id: adjust_timeout
     mode: restart
@@ -622,6 +670,37 @@ script:
   # ------------------------------------------------------------------------
   # Painting
   # ------------------------------------------------------------------------
+
+  # The idle face. Runs once a minute from the clock, and on any API change.
+  - id: paint_clock
+    mode: restart
+    then:
+      - lvgl.label.update:
+          id: clk_time
+          text: !lambda |-
+            static char b[8];
+            auto t = id(ha_time).now();
+            if (!t.is_valid()) return std::string("--:--");
+            snprintf(b, sizeof(b), "%02d:%02d", t.hour, t.minute);
+            return std::string(b);
+      # AMOLED, one static face, every night. The digits walk a four-step box
+      # a few pixels wide so no edge sits still long enough to burn in.
+      - lvgl.widget.update:
+          id: clk_time
+          x: !lambda |-
+            auto t = id(ha_time).now();
+            if (!t.is_valid()) return 0;
+            int p = t.minute % 4;
+            return (p == 1) ? 7 : (p == 3) ? -7 : 0;
+          y: !lambda |-
+            auto t = id(ha_time).now();
+            if (!t.is_valid()) return 0;
+            int p = t.minute % 4;
+            return (p == 2) ? 7 : (p == 0) ? -7 : 0;
+      # Nothing when the link is up: the absence of a mark is the good state.
+      - lvgl.label.update:
+          id: clk_link
+          text: !lambda 'return id(api_up) ? std::string("") : std::string("󰤭");'
 
   - id: paint_ac
     mode: restart
@@ -2150,3 +2229,26 @@ lvgl:
                   text_font: mdi_44
                   text_color: 0xCFCFCF
                   align: CENTER
+
+    # ---------------- the idle face ----------------
+    # What the glass shows when nobody is touching it, which is almost always.
+    # No card, no ring, no value - a tap or a turn leaves it and screentime
+    # brings the carousel back where it was.
+    - id: page_clock
+      bg_color: 0x000000
+      on_short_click: [script.execute: screentime]
+      on_long_press: [script.execute: screentime]
+      widgets:
+        - label:
+            id: clk_time
+            text: "--:--"
+            text_font: value_60
+            text_color: 0x6E6E6E
+            align: CENTER
+        - label:
+            id: clk_link
+            text: ""
+            text_font: mdi_44
+            text_color: 0x7A3B3B
+            align: CENTER
+            y: 92
