@@ -677,11 +677,11 @@ script:
           // this, so re-stamping it on every turn would swallow every tap.
           if (!id(screen_on)) { id(wake_ms) = millis(); }
           id(screen_on) = true;
-      - script.execute: show_page
       - light.turn_on:
           id: back_light
           brightness: !lambda |-
             return id(ha_goodnight).state == "on" ? 0.25f : 0.85f;
+      - script.execute: show_page
       - delay: ${screen_timeout}
       - lambda: |-
           id(screen_on) = false;
@@ -692,14 +692,28 @@ script:
           // hole the size of the rule itself: one sleepy turn on a stale WAVE
           // selection lights the panel over a sleeping head.
           id(sel_zone) = 0;
-      - script.execute: paint_clock
-      - lvgl.page.show: page_clock
-      # Far below the 25% the goodnight key already asks for while he is
-      # awake. This one is on all night, facing the bed.
-      - light.turn_on:
-          id: back_light
-          brightness: !lambda |-
-            return id(ha_goodnight).state == "on" ? 0.03f : 0.20f;
+      # The clock is a mains luxury. On the cell the glass goes dark and the
+      # knob is only lit when a hand is on it - the cell is a ride-through for
+      # a pulled plug, and a face burning through it all night spends the one
+      # thing it is there to protect.
+      #
+      # An unread rail counts as mains: it is NaN only for the first twenty
+      # seconds after boot, and the alternative is a knob that looks dead every
+      # time it starts.
+      - if:
+          condition:
+            lambda: 'return std::isnan(id(vbat).state) || id(vbat).state > 4.4f;'
+          then:
+            - script.execute: paint_clock
+            - lvgl.page.show: page_clock
+            # Far below the 25% the goodnight key already asks for while he is
+            # awake. This one is on all night, facing the bed.
+            - light.turn_on:
+                id: back_light
+                brightness: !lambda |-
+                  return id(ha_goodnight).state == "on" ? 0.03f : 0.20f;
+          else:
+            - light.turn_off: back_light
 
   - id: adjust_timeout
     mode: restart
@@ -761,19 +775,6 @@ script:
             - lvgl.label.update:
                 id: clk_link
                 text: "󰤭"
-      # Same rule for power. On USB the rail sits near 4.8 V and the face says
-      # nothing; on the cell it drops onto the lithium curve and the face shows
-      # what is left. 4.4 V is the threshold because a full cell tops at 4.2.
-      - lvgl.label.update:
-          id: clk_batt
-          text: !lambda |-
-            static char b[12];
-            float v = id(vbat).state;
-            if (std::isnan(v) || v > 4.4f) return std::string("");
-            float p = id(batt_level).state;
-            if (std::isnan(p)) return std::string("");
-            snprintf(b, sizeof(b), "%d%%", (int) roundf(p));
-            return std::string(b);
 
   - id: paint_ac
     mode: restart
@@ -2325,10 +2326,3 @@ lvgl:
             text_color: 0x7A3B3B
             align: CENTER
             y: 92
-        - label:
-            id: clk_batt
-            text: ""
-            text_font: label_28
-            text_color: 0x8A6A2A
-            align: CENTER
-            y: -96
