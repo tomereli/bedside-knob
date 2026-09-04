@@ -13,10 +13,12 @@ repo: bedside-knob
 # change is a knob that behaves oddly until the next flash.
 criticality: low
 
-# Validates the ESPHome YAML: schema, pin map, LVGL widget tree, and the
-# external component pulled from GitHub. Does not compile and does not need
-# the ESP-IDF toolchain, so it runs anywhere the crew does.
-test_command: "python -m esphome config firmware/bedside-knob.yaml"
+# Runs the pytest suite in tests/, whose first test is the ESPHome config
+# validation this command used to be on its own: schema, pin map, LVGL
+# widget tree, and the external component pulled from GitHub. Does not
+# compile and does not need the ESP-IDF toolchain, so it runs anywhere the
+# crew does.
+test_command: "python -m pytest tests/ -q"
 
 # No linter for a single ESPHome YAML. This is a decision, not a gap.
 lint_command: ""

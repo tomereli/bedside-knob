@@ -50,6 +50,9 @@
 substitutions:
   ac_ent:     climate.bedroom_ac
   fan_ent:    fan.master_bedroom_ceiling_fan
+  # Shortest on-state length on the AC/FAN rings, 0-100 scale. Below this an
+  # indicator reads as absent rather than as a small value (issue #3).
+  min_on:     "8"
   all_ent:    light.home_assistant_connect_zbt_2_bedroom_led_strips
   wave_ent:   light.tzb210_ue01a0s2_ts0502b_3
   beds_ent:   light.tzb210_ue01a0s2_ts0502b
@@ -288,6 +291,13 @@ globals:
     type: float
     restore_value: false
     initial_value: '24.0'
+  # Whether ha_ac_mode.state is a running HVACMode. Set once at the top of
+  # paint_ac; the value label, the arc value and the arc's visibility all
+  # read this instead of re-testing the state string (issue #3).
+  - id: ac_on
+    type: bool
+    restore_value: false
+    initial_value: 'false'
   - id: fan_step
     type: int
     restore_value: false
@@ -601,13 +611,24 @@ script:
   - id: paint_ac
     mode: restart
     then:
+      # Whitelist, not a blacklist: HA's HVACMode is a closed enum, so
+      # everything not in it - "off", "unavailable", "unknown", "", any
+      # future surprise - fails closed to the off appearance (issue #3).
+      - lambda: |-
+          std::string m = id(ha_ac_mode).state;
+          id(ac_on) = (m == "cool" || m == "heat" || m == "dry" ||
+                       m == "fan_only" || m == "auto" || m == "heat_cool");
       - lvgl.label.update:
           id: val_ac
           text: !lambda |-
             static char b[12];
-            if (id(ha_ac_mode).state == "off" || id(ha_ac_mode).state == "unavailable") { return "OFF"; }
-            snprintf(b, sizeof(b), "%.1f", id(ac_target));
-            return b;
+            if (id(ac_on)) {
+              snprintf(b, sizeof(b), "%.1f", id(ac_target));
+              return b;
+            }
+            std::string m = id(ha_ac_mode).state;
+            if (m == "off" || m == "unavailable") { return "OFF"; }
+            return "--";
           text_color: !lambda |-
             return lv_color_hex(id(ui_adjust) && id(ui_page) == 0 ? 0xFFFFFF : 0x53B4F5);
       - lvgl.label.update:
@@ -621,12 +642,19 @@ script:
       - lvgl.arc.update:
           id: arc_ac
           value: !lambda |-
-            if (id(ha_ac_mode).state == "off") return 0;
-            int v = (int) lroundf((id(ac_target) - 16.0f) * 100.0f / 14.0f);
-            return v < 0 ? 0 : (v > 100 ? 100 : v);
+            if (!id(ac_on)) return 0;
+            int v = (int) lroundf(${min_on} + (id(ac_target) - 16.0f) * (100.0f - ${min_on}) / 14.0f);
+            return v < ${min_on} ? ${min_on} : (v > 100 ? 100 : v);
           indicator:
             arc_color: !lambda |-
               return lv_color_hex(id(ui_adjust) && id(ui_page) == 0 ? 0xFFFFFF : 0x53B4F5);
+      - if:
+          condition:
+            lambda: 'return id(ac_on);'
+          then:
+            - lvgl.widget.show: arc_ac
+          else:
+            - lvgl.widget.hide: arc_ac
 
   - id: paint_fan
     mode: restart
@@ -649,10 +677,20 @@ script:
             return "";
       - lvgl.arc.update:
           id: arc_fan
-          value: !lambda 'return id(fan_step) * 100 / 6;'
+          value: !lambda |-
+            if (id(fan_step) <= 0) return 0;
+            int v = id(fan_step) * 100 / 6;
+            return v < ${min_on} ? ${min_on} : v;
           indicator:
             arc_color: !lambda |-
               return lv_color_hex(id(ui_adjust) && id(ui_page) == 1 ? 0xFFFFFF : 0xB8CDD6);
+      - if:
+          condition:
+            lambda: 'return id(fan_step) > 0;'
+          then:
+            - lvgl.widget.show: arc_fan
+          else:
+            - lvgl.widget.hide: arc_fan
 
   # Everything about the lights lives on one card. The name says which zone
   # the dial is pointed at; the buttons below are the whole room.
@@ -1414,6 +1452,7 @@ lvgl:
             min_value: 0
             max_value: 100
             value: 0
+            hidden: true
             adjustable: false
             clickable: false
             arc_width: 10
@@ -1465,6 +1504,7 @@ lvgl:
             min_value: 0
             max_value: 100
             value: 0
+            hidden: true
             adjustable: false
             clickable: false
             arc_width: 10
