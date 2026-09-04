@@ -55,6 +55,11 @@ substitutions:
   beds_ent:   light.tzb210_ue01a0s2_ts0502b
   tomer_ent:  light.tzb210_ue01a0s2_ts0502b_2
   masha_ent:  light.left_nightstand
+  # ZHA group 25, exactly the two strips a plain turn may move at night. One
+  # multicast instead of two unicasts - the nightstand is the weakest node on
+  # this mesh now (LQI 60), and serialised unicasts to a weak node are what
+  # dropped commands here before.
+  night_ent:  light.living_room_home_assistant_connect_zbt_2_bedroom_lights_night
   read_t_ent: switch.slvn_vknysh_n15_2
   read_m_ent: switch.khdr_shynh_rshy_kh_shynh_qryh_shml
   music_ent:  media_player.master_bedroom_master_bedroom_wiim
@@ -1087,15 +1092,37 @@ script:
                 entity: ${all_ent}
                 pct: !lambda 'return id(all_pct);'
                 st:  !lambda 'return id(ha_all_st).state;'
-      # ALL, at night: the group call cannot express "leave those two alone",
-      # because brightness_pct is move-to-level-with-on-off and would wake them.
-      # Serialised unicasts are safe here for the reason they are safe on the
-      # closet knob: at night typically one strip is lit, so one command goes.
+      # ALL, at night, on the group: a second ZHA group holds exactly the two
+      # strips a plain turn may move, so the night path is one multicast too.
+      # Safe whenever waking cannot surprise anyone - either the turn is upward
+      # and waking is the point, or both members are already lit and there is
+      # nothing for move-to-level-with-on-off to switch on.
       - if:
           condition:
             lambda: |-
               auto t = id(ha_time).now();
-              return id(sel_zone) == 0 && (!t.is_valid() || t.hour >= 22 || t.hour < 6);
+              bool night = !t.is_valid() || t.hour >= 22 || t.hour < 6;
+              if (id(sel_zone) != 0 || !night) return false;
+              bool both = id(ha_beds_st).state == "on" && id(ha_tomer_st).state == "on";
+              return id(turn_up) || both;
+          then:
+            - script.execute:
+                id: push_one
+                entity: ${night_ent}
+                pct: !lambda 'return id(all_pct);'
+                st:  !lambda |-
+                    return (id(ha_beds_st).state == "on" &&
+                            id(ha_tomer_st).state == "on")
+                           ? std::string("on") : std::string("off");
+      # ALL, at night, turning down with one of the two dark: the group would
+      # wake the dark one, so only the lit one is written. Still one command.
+      - if:
+          condition:
+            lambda: |-
+              auto t = id(ha_time).now();
+              bool night = !t.is_valid() || t.hour >= 22 || t.hour < 6;
+              if (id(sel_zone) != 0 || !night || id(turn_up)) return false;
+              return !(id(ha_beds_st).state == "on" && id(ha_tomer_st).state == "on");
           then:
             - script.execute:
                 id: push_one
