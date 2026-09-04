@@ -17,6 +17,12 @@ bedroom dark or the house unlocked, and the Home Assistant configuration
 other automations depend on. Everything else is fair game to try, ship,
 and fix in flight.
 
+**The AC and FAN cards are finished.** They read correctly under the hand
+in the dark and they are not to be redesigned — not their layout, not
+their rings, not their type. A change elsewhere may touch them only where
+it must to keep compiling. Anything that would alter how either card looks
+or behaves needs Tomer to ask for it first, by name.
+
 ## This repo is built by the AISDLC pipeline
 
 Work does not get written by hand here. It arrives as an issue and leaves
