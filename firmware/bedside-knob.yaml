@@ -378,24 +378,59 @@ sensor:
           id: knob_turn
           delta: -1
 
-  # System / battery rail. Waveshare puts it on ADC1 channel 0 - GPIO1 - behind
-  # a divide-by-three, and documents the conversion as 3.3/4096 * 3 * raw. The
-  # board carries a 1.25 mm lithium header and an onboard charger; HARDWARE.md
-  # records the header as deliberately empty, but the knob keeps running when
-  # the USB-C is pulled, so this reads what is actually on the rail.
+  # The supply rail, on ADC1 channel 0 - GPIO1. The divider is 2, not the 3 in
+  # Waveshare's own note for this board: the coffee knob runs identical
+  # hardware and reads 4.80 V on USB with multiply 2.0, and 3.0 here put the
+  # same rail at 7.18 V. The working device wins over the datasheet.
   - platform: adc
     pin: GPIO1
     id: vbat
     name: "Supply Voltage"
-    update_interval: 30s
+    entity_category: diagnostic
+    update_interval: 10s
     attenuation: 12db
     accuracy_decimals: 2
     unit_of_measurement: "V"
     filters:
-      - multiply: 3.0
-      - sliding_window_moving_average:
-          window_size: 4
-          send_every: 2
+      - multiply: 2.0
+      - median:
+          window_size: 5
+          send_every: 5
+          send_first_at: 2
+    on_value:
+      - component.update: batt_level
+      - script.execute: paint_clock
+
+  # Lithium discharge curve, taken verbatim from the coffee knob where it is
+  # already calibrated against this board. On USB the rail sits near 4.8 V,
+  # above the curve's top, so it clamps to 100 - which is why the rail voltage
+  # and not this percentage is what tells mains from battery.
+  - platform: template
+    id: batt_level
+    name: "Battery"
+    device_class: battery
+    entity_category: diagnostic
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
+    update_interval: never
+    lambda: |-
+      float v = id(vbat).state;
+      if (std::isnan(v) || std::isinf(v)) return NAN;
+      return v;
+    filters:
+      - calibrate_linear:
+          method: exact
+          datapoints:
+            - 3.00 -> 0.0
+            - 3.50 -> 10.0
+            - 3.65 -> 30.0
+            - 3.75 -> 50.0
+            - 3.90 -> 70.0
+            - 4.10 -> 90.0
+            - 4.20 -> 100.0
+      - clamp:
+          min_value: 0
+          max_value: 100
 
   - platform: homeassistant
     id: ha_ac_target
@@ -720,6 +755,19 @@ script:
       - lvgl.label.update:
           id: clk_link
           text: !lambda 'return id(api_up) ? std::string("") : std::string("󰤭");'
+      # Same rule for power. On USB the rail sits near 4.8 V and the face says
+      # nothing; on the cell it drops onto the lithium curve and the face shows
+      # what is left. 4.4 V is the threshold because a full cell tops at 4.2.
+      - lvgl.label.update:
+          id: clk_batt
+          text: !lambda |-
+            static char b[12];
+            float v = id(vbat).state;
+            if (std::isnan(v) || v > 4.4f) return std::string("");
+            float p = id(batt_level).state;
+            if (std::isnan(p)) return std::string("");
+            snprintf(b, sizeof(b), "%d%%", (int) roundf(p));
+            return std::string(b);
 
   - id: paint_ac
     mode: restart
@@ -2271,3 +2319,10 @@ lvgl:
             text_color: 0x7A3B3B
             align: CENTER
             y: 92
+        - label:
+            id: clk_batt
+            text: ""
+            text_font: label_28
+            text_color: 0x8A6A2A
+            align: CENTER
+            y: -96
