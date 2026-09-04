@@ -1,0 +1,66 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>bedside-knob — LIGHTS today, DIM tomorrow</title>
+<link rel="stylesheet" href="face.css">
+<div class="wrap">
+<h1>The lights card, before and after</h1>
+<p class="note">Left is the card on the knob today, rebuilt from
+<code>firmware/bedside-knob.yaml</code> — every coordinate, colour and font size is
+the one in the file. Right is the DIM card that replaces it. Both at 1:1; the
+glass is 360&nbsp;px across and sits about 15&nbsp;cm from a sleeping face.</p>
+
+<div class="stage">
+
+<figure>
+<div class="face">
+  <svg viewBox="0 0 360 360">
+    <circle class="trk" cx="180" cy="180" r="164"
+            stroke-dasharray="916 114.4" transform="rotate(110 180 180)"/>
+    <circle class="val" cx="180" cy="180" r="164"
+            stroke-dasharray="366.4 1030.4" transform="rotate(110 180 180)"/>
+  </svg>
+  <div class="w t28" style="top:62px">ALL</div>
+  <div class="w t60" style="top:118px">40%</div>
+
+  <div class="chip old sel" style="left:110px; top:192px">ALL</div>
+  <div class="chip old on"  style="left:180px; top:192px">WAVE</div>
+  <div class="chip old on"  style="left:250px; top:192px">BED</div>
+  <div class="chip old"     style="left:110px; top:260px">TOM</div>
+  <div class="chip old"     style="left:180px; top:260px">MASH</div>
+  <div class="chip old"     style="left:250px; top:260px">READ</div>
+</div>
+<figcaption><span class="cn">Today — one card, six 58&nbsp;px chips</span>
+Six targets, each 58&nbsp;px across with a 29&nbsp;px radius. A tap does not act:
+it points the dial at that zone and opens SET. A hold acts. Two of the six —
+BATH and CLOSET — are not here at all; they are separate cards further round the
+carousel. Nothing on this card knows what time it is.</figcaption>
+</figure>
+
+<figure>
+<div class="face">
+  <svg viewBox="0 0 360 360">
+    <circle class="trk" cx="180" cy="180" r="164"
+            stroke-dasharray="916 114.4" transform="rotate(110 180 180)"/>
+    <circle class="val" cx="180" cy="180" r="164"
+            stroke-dasharray="366.4 1030.4" transform="rotate(110 180 180)"/>
+  </svg>
+  <div class="w t28" style="top:68px">DIM</div>
+  <div class="w t60" style="top:130px">40%</div>
+  <div class="w t18" style="top:188px">ALL 4 STRIPS</div>
+  <div class="chip pill" style="top:260px">ALL</div>
+</div>
+<figcaption><span class="cn">After — one card, one target, one control</span>
+The number and the ring stay. The six chips become one 216&nbsp;× 58&nbsp;px pill
+naming the target, which is 3.5× the area of a chip and holds a 28&nbsp;px word.
+The line above it says what a turn will actually move — the sentence the old card
+had no way to say, and the reason the night rule is not a mystery.</figcaption>
+</figure>
+
+</div>
+
+<p class="note">The six chips do not come back somewhere else. Four of them —
+the four on/off switches — become the <a href="06-switches.html">SWITCHES</a>
+card next door. The five dimmable zones move to the
+<a href="08-zone-picker.html">TARGET</a> page behind the pill, where a turn walks
+them and nothing is applied until a tap.</p>
+</div>

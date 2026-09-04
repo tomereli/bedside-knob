@@ -1,0 +1,81 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>bedside-knob — issue #1 mockup</title>
+<link rel="stylesheet" href="face.css">
+<style>
+  table { border-collapse: collapse; font-size: 12.5px; margin: 0 0 26px; }
+  th, td { text-align: left; padding: 7px 18px 7px 0; border-bottom: 1px solid #1c1c1c; color: #7a7a7a; }
+  th { color: #b8b8b8; font-weight: 600; }
+  td.k { color: #c8a06a; }
+  ul { font-size: 12.5px; line-height: 1.8; color: #5f5f5f; padding-left: 18px; max-width: 640px; }
+  ul b { color: #c8a06a; font-weight: 600; }
+</style>
+<div class="wrap">
+
+<h1>Issue #1 — the LIGHTS card becomes DIM and SWITCHES</h1>
+<p class="note">Every screen is 1:1 against the real 360&nbsp;px glass, drawn with
+the colours, fonts and offsets already in <code>firmware/bedside-knob.yaml</code>.
+Open <a href="00-before-after.html"><b>00-before-after.html</b></a> first — that
+one is the argument.</p>
+
+<h2>Screens</h2>
+<ul>
+  <li><a href="00-before-after.html">00 — before and after</a>: today's LIGHTS
+      card beside the new DIM card.</li>
+  <li><a href="01-dim-day.html">01 — DIM, daytime</a>: the resting state, one
+      group call per turn.</li>
+  <li><a href="02-dim-night.html">02 — DIM, 22:00–06:00</a>: <b>the screen that
+      must not lie</b>. The sub-line names what a turn will move.</li>
+  <li><a href="03-dim-set.html">03 — DIM, SET open, single zone</a>: white ring,
+      no crescent, the night rule stepped aside.</li>
+  <li><a href="04-dim-off.html">04 — DIM, everything off</a>: no indicator arc,
+      which is criterion 14.</li>
+  <li><a href="05-dim-unavailable.html">05 — DIM, no reading yet</a>: grey
+      <code>&mdash;&mdash;</code>, not amber OFF.</li>
+  <li><a href="06-switches.html">06 — SWITCHES</a>: four 112&nbsp;px chips, each
+      one toggling its own switch on the spot.</li>
+  <li><a href="07-switches-states.html">07 — SWITCHES, all off and one gone</a>:
+      the empty state and the unavailable state.</li>
+  <li><a href="08-zone-picker.html">08 — TARGET</a>: turn walks the five zones,
+      tap commits, nothing is applied by walking.</li>
+  <li><a href="09-zone-picker-all-night.html">09 — TARGET, ALL at night</a>: the
+      night rule said again, one screen earlier.</li>
+</ul>
+
+<h2>The carousel, after</h2>
+<table>
+<tr><th>#</th><th>Card</th><th>Turn</th><th>Tap face</th><th>Hold</th></tr>
+<tr><td class="k">0</td><td>AC</td><td>carousel</td><td>SET</td><td>AC on/off</td></tr>
+<tr><td class="k">1</td><td>FAN</td><td>carousel</td><td>SET</td><td>fan on/off</td></tr>
+<tr><td class="k">2</td><td><b style="color:#c8a06a">DIM</b></td><td>carousel · in SET, ±20 points</td><td>SET</td><td>toggle the selected zone</td></tr>
+<tr><td class="k">3</td><td><b style="color:#c8a06a">SWITCHES</b></td><td>carousel</td><td>refuse buzz</td><td>refuse buzz</td></tr>
+<tr><td class="k">4</td><td>SCENES</td><td>carousel</td><td>&mdash;</td><td>refuse buzz</td></tr>
+<tr><td class="k">5</td><td>MUSIC</td><td>carousel · in SET, volume</td><td>SET</td><td>play / pause</td></tr>
+<tr><td class="k">&mdash;</td><td>TARGET <i>(sub-page)</i></td><td>walk the five zones</td><td>commit, back to DIM in SET</td><td>leave unchanged</td></tr>
+<tr><td class="k">&mdash;</td><td>PLAYLIST <i>(sub-page)</i></td><td>walk the list</td><td>play, back to MUSIC</td><td>leave unchanged</td></tr>
+</table>
+<p class="note">DIM and SWITCHES are adjacent on purpose: they are one subject
+split in two, and a single detent moves between them. BATH and CLOSET are gone
+as cards — they are two of the four chips on SWITCHES.</p>
+
+<h2>What is not on these screens</h2>
+<ul>
+  <li><b>Colour temperature.</b> Every bedroom light is <code>color_temp</code>
+      only, 2000–6535&nbsp;K, and REQUIREMENTS.md wants warmth riding the same
+      dial. This issue does not write it, so showing it would put a number on the
+      glass that nothing can change.</li>
+  <li><b>Home Assistant's own names.</b> They are machine transliterations —
+      <code>khdr_shynh_rshy_kh_shynh_qryh_shml</code>. Every label on both cards
+      is written by hand in the firmware, and that is why.</li>
+  <li><b>Raw brightness, last-changed, group membership, who turned it on.</b>
+      None of it is something a hand at 3am acts on.</li>
+  <li><b>Notifications, repairs, updates, weather.</b> Already refused in
+      REQUIREMENTS.md; restated because the sub-line is exactly the kind of slot
+      that attracts them.</li>
+</ul>
+
+<p class="note">Percentages in these mockups are sample values. Home Assistant
+reads were not granted to this session, so no live level was available — the
+access note in <code>design.md</code> covers what that leaves unverified.</p>
+
+</div>

@@ -1,0 +1,45 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>SWITCHES — all off, and one gone</title>
+<link rel="stylesheet" href="face.css">
+<div class="wrap">
+<h1>SWITCHES — the empty state, and a switch that is not answering</h1>
+
+<div class="stage">
+<figure>
+<div class="face">
+  <div class="w t28" style="top:50px">SWITCHES</div>
+  <div class="chip round" style="left:116px; top:134px">BATH</div>
+  <div class="chip round" style="left:244px; top:134px">CLOSET</div>
+  <div class="chip round" style="left:116px; top:252px">READ L</div>
+  <div class="chip round" style="left:244px; top:252px">READ R</div>
+</div>
+<figcaption><span class="cn">All four off</span>
+No ring, so there is no full-length arc in the card's hue to draw wrong — the
+card measures nothing, and a control that measures nothing should not carry a
+gauge. That satisfies criterion 14 by construction rather than by a lambda that
+has to remember to return zero.</figcaption>
+</figure>
+
+<figure>
+<div class="face">
+  <div class="w t28" style="top:50px">SWITCHES</div>
+  <div class="chip round gone" style="left:116px; top:134px">BATH</div>
+  <div class="chip round on"   style="left:244px; top:134px">CLOSET</div>
+  <div class="chip round"      style="left:116px; top:252px">READ L</div>
+  <div class="chip round"      style="left:244px; top:252px">READ R</div>
+</div>
+<figcaption><span class="cn">BATH unavailable</span>
+Grey, not dark amber. A relay that has dropped off the mesh looks nothing like a
+relay that is off, so the tap that will not work is visible before it is made.
+The same one-line addition as the <code>&mdash;&mdash;</code> on DIM, and the
+same reason.</figcaption>
+</figure>
+
+</div>
+
+<p class="note">Three chip states, three colours, and the card never shows fewer
+than four chips. There is no state in which this card is empty: the four
+switches are compiled in, and a switch that is missing from Home Assistant shows
+as grey rather than disappearing.</p>
+</div>

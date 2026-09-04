@@ -1,0 +1,37 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>DIM — day, ALL</title>
+<link rel="stylesheet" href="face.css">
+<div class="wrap">
+<h1>DIM — daytime, target ALL</h1>
+<div class="stage">
+<div class="face">
+  <svg viewBox="0 0 360 360">
+    <circle class="trk" cx="180" cy="180" r="164"
+            stroke-dasharray="916 114.4" transform="rotate(110 180 180)"/>
+    <circle class="val" cx="180" cy="180" r="164"
+            stroke-dasharray="549.6 1030.4" transform="rotate(110 180 180)"/>
+  </svg>
+  <div class="w t28" style="top:68px">DIM</div>
+  <div class="w t60" style="top:130px">60%</div>
+  <div class="w t18" style="top:188px">ALL 4 STRIPS</div>
+  <div class="chip pill" style="top:260px">ALL</div>
+</div>
+<div class="cap">
+  <p class="t">The resting state, 06:00–22:00</p>
+  <p class="d">Tap the face to open SET, turn to dim. One detent is
+  <b>20 points</b>: three detents cross from 60% to off-limit, five cross the
+  whole range. The old card moved 1 point per detent and reset its acceleration
+  after a 300&nbsp;ms pause, so a deliberate turn never left the first step.</p>
+  <p class="d">The line under the number is the whole point of the redesign. By
+  day it reads <b>ALL 4 STRIPS</b>, and one turn is one group call to
+  <code>light.home_assistant_connect_zbt_2_bedroom_led_strips</code> — a single
+  multicast, not four staggered writes.</p>
+  <p class="d">The pill at the bottom is the only tappable thing besides the
+  face. It names the target and opens the TARGET page.</p>
+  <p class="g">Widgets: ring r=164 stroke 10 · title label_28 y −112 · value
+  value_60 y −50 · sub label_18 y +8 · pill 216×58 r29 y +80.
+  Percentages here are sample values — see the access note in design.md.</p>
+</div>
+</div>
+</div>

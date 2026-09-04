@@ -1,0 +1,39 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>DIM — no reading yet</title>
+<link rel="stylesheet" href="face.css">
+<div class="wrap">
+<h1>DIM — booted, nothing heard from Home Assistant</h1>
+<div class="stage">
+<div class="face">
+  <svg viewBox="0 0 360 360">
+    <circle class="trk" cx="180" cy="180" r="164"
+            stroke-dasharray="916 114.4" transform="rotate(110 180 180)"/>
+  </svg>
+  <div class="w mdi" style="left:108px; top:68px">&#9790;</div>
+  <div class="w t28" style="top:68px">DIM</div>
+  <div class="w t60 na" style="top:130px">&mdash;&mdash;</div>
+  <div class="w t18" style="top:188px">BED &middot; TOMER</div>
+  <div class="chip pill" style="top:260px">ALL</div>
+</div>
+<div class="cap">
+  <p class="t">Two states that must not read the same</p>
+  <p class="d">The card on the knob today prints <b>OFF</b> for anything whose
+  state is not the string <code>"on"</code> — which means a light that is off and
+  a light that has dropped off the Zigbee mesh look identical, and so does a
+  light the knob has simply not heard about yet. Standing there turning a dial at
+  a light that is not listening is the failure that produces.</p>
+  <p class="d"><b>&mdash;&mdash;</b> in grey means no reading. <b>OFF</b> in
+  amber means the light is genuinely off. One extra branch in the value lambda,
+  and the two stop being the same picture.</p>
+  <p class="d">This is beyond the issue's acceptance criteria and it is in this
+  file on purpose, at a cost of one line, because the card it lands in is one
+  this issue rewrites anyway.</p>
+  <p class="g">Boot order: <code>on_boot</code> paints after 2&nbsp;s and
+  <code>api.on_client_connected</code> repaints 2&nbsp;s after the connection, so
+  this screen is what the first few seconds look like. Full offline treatment —
+  telling him Home Assistant is unreachable rather than that a value is unknown —
+  is REQUIREMENTS.md's ask and a separate issue.</p>
+</div>
+</div>
+</div>
