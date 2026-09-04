@@ -1066,6 +1066,12 @@ script:
   - id: push_zone
     mode: restart
     then:
+      # Paint has already happened, so the glass is tracking the hand and this
+      # delay costs nothing visible. mode:restart means each new detent cancels
+      # the pending send, so a whole spin collapses into ONE call once the hand
+      # settles instead of one per detent. Without it a fast spin fires up to
+      # eight parallel service calls into the mesh and the strips lag badly.
+      - delay: 120ms
       # ALL, by day: ONE MULTICAST TO THE GROUP. This must stay a group call.
       # The closet knob learned the hard way that stepping these strips as
       # separate unicasts drops all but the first on this mesh - the fix there
