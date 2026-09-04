@@ -37,6 +37,13 @@ data_paths:
 # Firmware has no migrations.
 migration_paths: []
 
+# Where tests may be written. Everything this repo builds lives under
+# firmware/, so its tests live beside it; the default of tests/** at the
+# root would put them in a directory that belongs to nothing.
+test_paths:
+  - "firmware/tests/**"
+  - "tests/**"
+
 # The knob reports its build through Home Assistant's device registry
 # (sw_version), not through an endpoint this repo serves.
 version_surface:
