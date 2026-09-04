@@ -1,0 +1,44 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>04 — MUSIC muted</title>
+<link rel="stylesheet" href="face.css">
+<div class="wrap">
+  <h1>04 — Muted. The ring is dead, the number is alive.</h1>
+  <p class="note"><code>media_player.volume_mute</code> was called and
+  <code>is_volume_muted</code> came back true. Three channels carry it, because one is not
+  enough at 25% backlight and AC-5 asks for the state, not for a hint.</p>
+
+  <div class="stage">
+    <div class="face">
+      <svg viewBox="0 0 360 360">
+        <circle class="arc trk" cx="180" cy="180" r="159" stroke-dasharray="887.9 111.0" transform="rotate(110 180 180)"/>
+        <circle class="arc val" cx="180" cy="180" r="159" style="stroke:var(--mus-track)" stroke-dasharray="337.4 661.5" transform="rotate(110 180 180)"/>
+      </svg>
+      <div class="slot f28 ls3 dim" style="top:64px">MUSIC</div>
+      <div class="slot f60 hot" style="top:122px">38%</div>
+      <div class="slot f18 dim" style="top:174px">MUTED</div>
+      <div class="btn d58" style="left:46px;top:221px"><i class="mdi mdi-playlist-music"></i></div>
+      <div class="btn d58" style="left:116px;top:221px"><i class="mdi mdi-play-pause"></i></div>
+      <div class="btn d58 lit" style="left:186px;top:221px"><i class="mdi mdi-volume-off"></i></div>
+      <div class="btn d58" style="left:256px;top:221px"><i class="mdi mdi-skip-next"></i></div>
+    </div>
+    <div class="cap">
+      <p class="t">The glyph changes, the border lights, the arc goes flat.</p>
+      <p class="d"><code>mdi:volume-high</code> becomes <code>mdi:volume-off</code> — a 44 px
+      shape change, the strongest signal available on this card. The border goes to the hot
+      rose, which is the file's own "this thing is active" convention from
+      <code>paint_lights</code>. And the arc indicator drops to the track colour, so the ring
+      reads as empty.</p>
+      <p class="d">The volume number stays. The level is still real and the dial still sets
+      it. A dead ring beside a live number is exactly "there is a level, and nothing is
+      coming out of it" — and that is the difference between muted and paused, which must
+      never read the same.</p>
+      <p class="d"><b>Muted and armed at once:</b> the arc obeys mute, the state line obeys
+      the prompt. Both remain legible on their own buttons. That precedence is the whole
+      reason mute needs three channels instead of one.</p>
+      <p class="g">Starting playback clears mute. He asked for music; delivering silence
+      under a <code>PLAYING</code> label is two states reading the same, which is a bill this
+      repo has already paid once.</p>
+    </div>
+  </div>
+</div>

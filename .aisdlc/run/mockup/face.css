@@ -1,0 +1,110 @@
+/* Bedside knob — issue #2, the MUSIC card and the playlist sub-page.
+   360 x 360 round panel rendered 1:1. Every colour is lifted verbatim from
+   firmware/bedside-knob.yaml; nothing here is invented. Geometry follows the
+   file's own LVGL coordinates: align CENTER, y measured from 180, the arc at
+   328 x 328 with a 40 deg gap at the bottom, inside a 172 px safe radius. */
+
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@500&display=swap');
+@import url('https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css');
+
+:root {
+  --page: #0d0d0d;
+  --edge: #1c1c1c;
+  --ink:  #9a9a9a;
+  --ink2: #5f5f5f;
+  --rule: #202020;
+
+  /* MUSIC / PLAYLIST — rose. page_music bg_color, arc, labels, buttons. */
+  --mus-bg:     #1A0D12;
+  --mus-track:  #3A1E2A;
+  --mus-hot:    #F06292;
+  --mus-dim:    #8C4A62;
+  --btn-bg:     #2A141C;
+  --btn-edge:   #4A2432;
+  --back-ink:   #CFCFCF;
+}
+
+html, body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { padding: 40px 44px 90px; }
+
+h1 { font-size: 16px; font-weight: 600; color: #d8d8d8; margin: 0 0 8px; }
+h2 {
+  font-size: 12px; font-weight: 600; letter-spacing: .14em;
+  text-transform: uppercase; color: #7a7a7a;
+  margin: 52px 0 20px; padding-bottom: 8px; border-bottom: 1px solid var(--rule);
+}
+p.note { font-size: 12.5px; line-height: 1.65; color: var(--ink2); margin: 0 0 26px; max-width: 620px; }
+code { font-family: ui-monospace, Consolas, monospace; color: #b07a8e; font-size: .93em; }
+
+.stage { display: flex; align-items: flex-start; gap: 36px; flex-wrap: wrap; }
+.cap { max-width: 400px; padding-top: 2px; }
+.cap .t { font-size: 13px; font-weight: 600; color: #d0d0d0; margin: 0 0 8px; }
+.cap .d { font-size: 12.5px; line-height: 1.65; color: var(--ink2); margin: 0 0 10px; }
+.cap .g { font-size: 11.5px; line-height: 1.65; color: #8a6272; margin: 0; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, 360px); gap: 44px 48px; justify-content: start; }
+figure { margin: 0; }
+figcaption { margin-top: 14px; width: 360px; font-size: 12.5px; line-height: 1.6; color: var(--ink2); }
+figcaption .cn { color: #c8c8c8; font-weight: 600; display: block; margin-bottom: 4px; }
+figcaption b { color: var(--mus-hot); font-weight: 600; }
+
+/* ---------------------------- the panel ---------------------------- */
+
+.face {
+  position: relative; flex: none;
+  width: 360px; height: 360px; border-radius: 50%;
+  background: var(--mus-bg);
+  box-shadow: 0 0 0 1px var(--edge), 0 0 70px rgba(0,0,0,.95);
+  font-family: 'Montserrat', 'Segoe UI', system-ui, sans-serif;
+  font-weight: 500;
+  overflow: hidden;
+}
+.face svg { position: absolute; inset: 0; width: 360px; height: 360px; }
+.face circle.arc { fill: none; stroke-width: 10; }
+.arc.trk { stroke: var(--mus-track); }
+.arc.val { stroke: var(--mus-hot); }
+
+/* Text slots. top = 180 + the file's y. */
+.slot { position: absolute; left: 0; width: 360px; text-align: center; white-space: nowrap; transform: translateY(-50%); }
+.f28 { font-size: 28px; line-height: 34px; }
+.f18 { font-size: 18px; line-height: 22px; }
+.f60 { font-size: 60px; line-height: 73px; }
+.ls3 { letter-spacing: 3px; }
+.dim { color: var(--mus-dim); }
+.hot { color: var(--mus-hot); }
+
+/* name_pl carries width: 300 and long_mode: DOT. */
+.clip300 {
+  width: 300px; left: 30px;
+  overflow: hidden; text-overflow: ellipsis;
+}
+
+/* Round on-glass buttons. left/top = 180 + x - w/2. */
+.btn {
+  position: absolute; border-radius: 50%;
+  background: var(--btn-bg);
+  border: 3px solid var(--btn-edge);
+  box-sizing: border-box;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--mus-hot);
+}
+.btn.d58 { width: 58px; height: 58px; }
+.btn.d66 { width: 66px; height: 66px; }
+.btn .mdi { font-size: 44px; line-height: 44px; }
+.btn.lit { border-color: var(--mus-hot); }
+.btn.back { color: var(--back-ink); }
+
+/* Overlay measurements — page furniture, never on the glass. */
+.safe {
+  position: absolute; left: 8px; top: 8px; width: 344px; height: 344px;
+  border-radius: 50%; border: 1px dashed rgba(240,98,146,.28); pointer-events: none;
+}
+.showsafe .safe { display: block; }
+.safe { display: none; }

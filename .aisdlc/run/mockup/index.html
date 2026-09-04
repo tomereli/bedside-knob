@@ -1,0 +1,196 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Bedside knob — issue #2, MUSIC and the playlist sub-page</title>
+<link rel="stylesheet" href="face.css">
+<div class="wrap">
+
+<h1>Issue #2 — the MUSIC card and the playlist sub-page</h1>
+<p class="note">360 × 360 at 1:1, the firmware's own palette, the five real playlist names.
+Before beside after is the argument. Two surfaces change and nothing else on the carousel
+moves.</p>
+
+<h2>The playlist sub-page — before / after</h2>
+<p class="note"><code>input_select.bedroom_playlist</code> has one state record across ten days:
+<code>Liked Songs</code>, unchanged since 2026-08-31. Of five options, one has ever been
+reachable. Left: today. Right: the walk working, and a play control that gives the night
+confirm a target a palm cannot land on.</p>
+
+<div class="grid">
+  <figure>
+    <div class="face">
+      <div class="slot hot" style="top:70px;font-size:44px;line-height:44px"><i class="mdi mdi-playlist-music"></i></div>
+      <div class="slot f18 ls3 dim" style="top:114px">PLAYLIST</div>
+      <div class="slot f28 hot clip300" style="top:168px">Liked Songs</div>
+      <div class="slot f18 dim" style="top:214px">TAP TO PLAY</div>
+      <div class="btn d66 back" style="left:147px;top:251px"><i class="mdi mdi-arrow-left"></i></div>
+    </div>
+    <figcaption><span class="cn">Before — 05</span>
+      Turning does nothing. The other four playlists have valid URIs and cannot be reached.
+      The tap plays, at any hour, at whatever volume was left behind.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="face">
+      <div class="slot hot" style="top:70px;font-size:44px;line-height:44px"><i class="mdi mdi-playlist-music"></i></div>
+      <div class="slot f18 ls3 dim" style="top:114px">PLAYLIST</div>
+      <div class="slot f28 hot clip300" style="top:168px">Lullaby Ocean</div>
+      <div class="slot f18 dim" style="top:214px">TAP TO PLAY</div>
+      <div class="btn d66 back" style="left:103px;top:251px"><i class="mdi mdi-arrow-left"></i></div>
+      <div class="btn d66" style="left:191px;top:251px"><i class="mdi mdi-play"></i></div>
+    </div>
+    <figcaption><span class="cn">After — 06</span>
+      One detent, one option, wrapping. <b>BACK</b> and <b>PLAY</b> at <code>x: ±44</code>.
+      Moving BACK off centre costs nothing: this page has never worked, so no muscle memory
+      attaches to it.</figcaption>
+  </figure>
+</div>
+
+<h2>The MUSIC card — before / after</h2>
+<p class="note">Four controls do not fit at 66 px: the worst corner lands at r = 177, outside
+the 172 px safe radius. The row adopts the LIGHTS card's zone-chip geometry instead — 58 px on
+a 70 px pitch — extended by one. Only PLAY and MUTE take new positions, and PLAY moves by half
+a button width.</p>
+
+<div class="grid">
+  <figure>
+    <div class="face">
+      <svg viewBox="0 0 360 360">
+        <circle class="arc trk" cx="180" cy="180" r="159" stroke-dasharray="887.9 111.0" transform="rotate(110 180 180)"/>
+        <circle class="arc val" cx="180" cy="180" r="159" stroke-dasharray="337.4 661.5" transform="rotate(110 180 180)"/>
+      </svg>
+      <div class="slot f28 ls3 dim" style="top:64px">MUSIC</div>
+      <div class="slot f60 hot" style="top:122px">38%</div>
+      <div class="slot f18 dim" style="top:174px">PLAYING</div>
+      <div class="btn d66" style="left:69px;top:217px"><i class="mdi mdi-playlist-music"></i></div>
+      <div class="btn d66" style="left:147px;top:217px"><i class="mdi mdi-play-pause"></i></div>
+      <div class="btn d66" style="left:225px;top:217px"><i class="mdi mdi-skip-next"></i></div>
+    </div>
+    <figcaption><span class="cn">Before — 01</span>
+      No mute anywhere on the device. Nothing between a hand and
+      <code>media_play_pause</code> at any hour. One detent moves the volume 1 pp.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="face">
+      <svg viewBox="0 0 360 360">
+        <circle class="arc trk" cx="180" cy="180" r="159" stroke-dasharray="887.9 111.0" transform="rotate(110 180 180)"/>
+        <circle class="arc val" cx="180" cy="180" r="159" stroke-dasharray="337.4 661.5" transform="rotate(110 180 180)"/>
+      </svg>
+      <div class="slot f28 ls3 dim" style="top:64px">MUSIC</div>
+      <div class="slot f60 hot" style="top:122px">38%</div>
+      <div class="slot f18 dim" style="top:174px">PLAYING</div>
+      <div class="btn d58" style="left:46px;top:221px"><i class="mdi mdi-playlist-music"></i></div>
+      <div class="btn d58" style="left:116px;top:221px"><i class="mdi mdi-play-pause"></i></div>
+      <div class="btn d58" style="left:186px;top:221px"><i class="mdi mdi-volume-high"></i></div>
+      <div class="btn d58" style="left:256px;top:221px"><i class="mdi mdi-skip-next"></i></div>
+    </div>
+    <figcaption><span class="cn">After — 02, playing at 23:40</span>
+      Mute just right of centre, under the thumb, because it is the control that silences the
+      room whatever is driving the speaker. <b>Playback is running, so this is also the noon
+      card</b> — no prompt, no badge, no dimmed control, ever.</figcaption>
+  </figure>
+</div>
+
+<h2>The states that are new</h2>
+
+<div class="grid">
+  <figure>
+    <div class="face">
+      <svg viewBox="0 0 360 360">
+        <circle class="arc trk" cx="180" cy="180" r="159" stroke-dasharray="887.9 111.0" transform="rotate(110 180 180)"/>
+        <circle class="arc val" cx="180" cy="180" r="159" stroke-dasharray="177.6 821.3" transform="rotate(110 180 180)"/>
+      </svg>
+      <div class="slot f28 ls3 dim" style="top:64px">MUSIC</div>
+      <div class="slot f60 hot" style="top:122px">20%</div>
+      <div class="slot f18 hot" style="top:174px">HOLD PLAY TO START</div>
+      <div class="btn d58" style="left:46px;top:221px"><i class="mdi mdi-playlist-music"></i></div>
+      <div class="btn d58 lit" style="left:116px;top:221px"><i class="mdi mdi-play-pause"></i></div>
+      <div class="btn d58" style="left:186px;top:221px"><i class="mdi mdi-volume-high"></i></div>
+      <div class="btn d58" style="left:256px;top:221px"><i class="mdi mdi-skip-next"></i></div>
+    </div>
+    <figcaption><span class="cn">03 — armed, 23:41, nothing playing</span>
+      The tap armed instead of starting. Volume was 38%; it is <b>20% for real</b>, so the
+      number is the number that will play. Prompt in the bright rose, not the dim one — the
+      backlight is at 25% when this appears.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="face">
+      <svg viewBox="0 0 360 360">
+        <circle class="arc trk" cx="180" cy="180" r="159" stroke-dasharray="887.9 111.0" transform="rotate(110 180 180)"/>
+        <circle class="arc val" cx="180" cy="180" r="159" style="stroke:var(--mus-track)" stroke-dasharray="337.4 661.5" transform="rotate(110 180 180)"/>
+      </svg>
+      <div class="slot f28 ls3 dim" style="top:64px">MUSIC</div>
+      <div class="slot f60 hot" style="top:122px">38%</div>
+      <div class="slot f18 dim" style="top:174px">MUTED</div>
+      <div class="btn d58" style="left:46px;top:221px"><i class="mdi mdi-playlist-music"></i></div>
+      <div class="btn d58" style="left:116px;top:221px"><i class="mdi mdi-play-pause"></i></div>
+      <div class="btn d58 lit" style="left:186px;top:221px"><i class="mdi mdi-volume-off"></i></div>
+      <div class="btn d58" style="left:256px;top:221px"><i class="mdi mdi-skip-next"></i></div>
+    </div>
+    <figcaption><span class="cn">04 — muted</span>
+      Glyph swaps, border lights, arc drops to the track colour. The number stays: a dead ring
+      beside a live number is "there is a level, and nothing is coming out of it". That is what
+      keeps <b>muted</b> and <b>paused</b> from reading the same.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="face">
+      <div class="slot hot" style="top:70px;font-size:44px;line-height:44px"><i class="mdi mdi-playlist-music"></i></div>
+      <div class="slot f18 ls3 dim" style="top:114px">PLAYLIST</div>
+      <div class="slot f28 hot clip300" style="top:168px">Lullaby Ocean</div>
+      <div class="slot f18 hot" style="top:214px">HOLD PLAY TO START</div>
+      <div class="btn d66 back" style="left:103px;top:251px"><i class="mdi mdi-arrow-left"></i></div>
+      <div class="btn d66 lit" style="left:191px;top:251px"><i class="mdi mdi-play"></i></div>
+    </div>
+    <figcaption><span class="cn">07 — armed on the sub-page</span>
+      Same string, same colour, same 700 ms hold. <b>One confirm gesture on the whole
+      device.</b> BACK still works, and doing nothing for six seconds works too.</figcaption>
+  </figure>
+
+  <figure>
+    <div class="face showsafe">
+      <div class="safe"></div>
+      <div class="slot hot" style="top:70px;font-size:44px;line-height:44px"><i class="mdi mdi-playlist-music"></i></div>
+      <div class="slot f18 ls3 dim" style="top:114px">PLAYLIST</div>
+      <div class="slot f28 hot clip300" style="top:168px">KPop Demon Hunters</div>
+      <div class="slot f18 dim" style="top:214px">TAP TO PLAY</div>
+      <div class="btn d66 back" style="left:103px;top:251px"><i class="mdi mdi-arrow-left"></i></div>
+      <div class="btn d66" style="left:191px;top:251px"><i class="mdi mdi-play"></i></div>
+    </div>
+    <figcaption><span class="cn">08 — the longest name that exists</span>
+      ≈ 280 px against <code>width: 300</code>. It fits because it is mixed case; upper-cased
+      it would ellipsise. The dashed ring is the 172 px safe radius, page furniture only.</figcaption>
+  </figure>
+</div>
+
+<h2>The grammar, in full</h2>
+
+<table style="border-collapse:collapse;font-size:12.5px;color:#8a8a8a;max-width:900px">
+  <thead>
+    <tr style="text-align:left;color:#c8c8c8">
+      <th style="padding:8px 18px 8px 0;border-bottom:1px solid #202020">Gesture</th>
+      <th style="padding:8px 18px 8px 0;border-bottom:1px solid #202020">Playing</th>
+      <th style="padding:8px 18px 8px 0;border-bottom:1px solid #202020">Not playing, 06:00–22:00</th>
+      <th style="padding:8px 0;border-bottom:1px solid #202020">Not playing, 22:00–06:00</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td style="padding:7px 18px 7px 0">Turn, in SET</td><td>volume ±5 pp, accelerating</td><td>same</td><td>same, ungated</td></tr>
+    <tr><td style="padding:7px 18px 7px 0">Tap PLAY</td><td>pause</td><td>start</td><td><b style="color:#F06292">arm</b> + cap to 20%</td></tr>
+    <tr><td style="padding:7px 18px 7px 0">Hold PLAY, 700 ms</td><td>pause</td><td>start</td><td><b style="color:#F06292">start</b>, if armed</td></tr>
+    <tr><td style="padding:7px 18px 7px 0">Hold the open glass</td><td>pause</td><td>start</td><td><b style="color:#F06292">arm</b> — never confirms</td></tr>
+    <tr><td style="padding:7px 18px 7px 0">Tap MUTE</td><td colspan="3"><code>media_player.volume_mute</code>, both polarities, at every hour</td></tr>
+    <tr><td style="padding:7px 18px 7px 0">Tap NEXT</td><td colspan="3">next track, at every hour</td></tr>
+    <tr><td style="padding:7px 18px 7px 0">Tap the face on the sub-page</td><td>—</td><td>start that playlist</td><td><b style="color:#F06292">arm</b> + cap to 20%</td></tr>
+    <tr><td style="padding:7px 18px 7px 0">Turn on the sub-page</td><td colspan="3">walk <code>input_select.bedroom_playlist</code>, one option per detent, wrapping</td></tr>
+    <tr><td style="padding:7px 18px 7px 0">Wind to another card</td><td colspan="3">clears the arm</td></tr>
+  </tbody>
+</table>
+
+<p class="note" style="margin-top:26px">Paused counts as not playing: the first tap of play at
+03:00 arms. The clock being unknown counts as quiet, and shows the same prompt — there is no
+third face to learn. Six seconds, the screen sleeping, or leaving the card all clear the arm,
+and none of them draws a countdown.</p>
+
+</div>

@@ -1,0 +1,39 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>01 — MUSIC as it ships today</title>
+<link rel="stylesheet" href="face.css">
+<div class="wrap">
+  <h1>01 — MUSIC, the card as it ships today</h1>
+  <p class="note">Drawn from <code>firmware/bedside-knob.yaml</code> lines 1770–1897. Three 66 px
+  buttons at <code>y: 70</code>, <code>x: -78 / 0 / 78</code>. No mute anywhere on the device, and
+  nothing between a hand and <code>media_player.media_play_pause</code> at any hour.</p>
+
+  <div class="stage">
+    <div class="face">
+      <svg viewBox="0 0 360 360">
+        <circle class="arc trk" cx="180" cy="180" r="159" stroke-dasharray="887.9 111.0" transform="rotate(110 180 180)"/>
+        <circle class="arc val" cx="180" cy="180" r="159" stroke-dasharray="337.4 661.5" transform="rotate(110 180 180)"/>
+      </svg>
+      <div class="slot f28 ls3 dim" style="top:64px">MUSIC</div>
+      <div class="slot f60 hot" style="top:122px">38%</div>
+      <div class="slot f18 dim" style="top:174px">PLAYING</div>
+      <div class="btn d66" style="left:69px;top:217px"><i class="mdi mdi-playlist-music"></i></div>
+      <div class="btn d66" style="left:147px;top:217px"><i class="mdi mdi-play-pause"></i></div>
+      <div class="btn d66" style="left:225px;top:217px"><i class="mdi mdi-skip-next"></i></div>
+    </div>
+    <div class="cap">
+      <p class="t">What is wrong with this screen at 03:00.</p>
+      <p class="d">The middle button starts music. So does a hold anywhere on the open
+      glass — which is what a palm settling on the panel produces. Neither asks anything,
+      and both play at whatever volume was left behind in the evening.</p>
+      <p class="d">There is no way to silence the room. Pause is the only stop, and
+      <code>REQUIREMENTS.md</code> records that a direct <code>media_play_pause</code> on the
+      Music Assistant entity does nothing during an AirPlay session.</p>
+      <p class="d">One detent of the dial moves the volume 1 percentage point, and the
+      acceleration streak resets after a 300 ms gap, so a deliberate turn never leaves the
+      first step.</p>
+      <p class="g">The volume, the transport word and the arc are all correct and all stay.
+      This card is not being redesigned — it is being finished.</p>
+    </div>
+  </div>
+</div>

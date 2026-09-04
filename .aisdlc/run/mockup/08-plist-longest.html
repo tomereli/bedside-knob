@@ -1,0 +1,39 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>08 — the longest name that actually exists</title>
+<link rel="stylesheet" href="face.css">
+<div class="wrap">
+  <h1>08 — The longest of the five, against a 300 px slot</h1>
+  <p class="note"><code>name_pl</code> carries <code>width: 300</code> and
+  <code>long_mode: DOT</code>. <code>KPop Demon Hunters</code> measures about 280 px at
+  <code>label_28</code> — it fits, with roughly 20 px to spare, and it is the only one of the
+  five that is close. This is the extreme case, and it is a real row rather than an invented
+  one.</p>
+
+  <div class="stage">
+    <div class="face showsafe">
+      <div class="safe"></div>
+      <div class="slot hot" style="top:70px;font-size:44px;line-height:44px"><i class="mdi mdi-playlist-music"></i></div>
+      <div class="slot f18 ls3 dim" style="top:114px">PLAYLIST</div>
+      <div class="slot f28 hot clip300" style="top:168px">KPop Demon Hunters</div>
+      <div class="slot f18 dim" style="top:214px">TAP TO PLAY</div>
+      <div class="btn d66 back" style="left:103px;top:251px"><i class="mdi mdi-arrow-left"></i></div>
+      <div class="btn d66" style="left:191px;top:251px"><i class="mdi mdi-play"></i></div>
+    </div>
+    <div class="cap">
+      <p class="t">Mixed case, not upper case, and that is what saves it.</p>
+      <p class="d">The name is written verbatim out of <code>ha_plist.state</code>, with no
+      <code>text_transform</code>. Upper-cased it would run past 330 px and ellipsise. Left
+      alone it fits.</p>
+      <p class="d">A sixth name longer than about nineteen characters ellipsises rather than
+      overflowing, which is the right failure — but it is a failure, and it is fixed in Home
+      Assistant by shortening the name, not here.</p>
+      <p class="d">The dashed ring is the 172 px safe radius. It is page furniture and never
+      appears on the glass.</p>
+      <p class="g">Two options is the design's floor. With one option a turn produces a
+      detent click and no change — honest, and indistinguishable from the bug this issue is
+      fixing. Past about eight the walk stops being reasonable and becomes the menu
+      <code>REQUIREMENTS.md</code> already refused.</p>
+    </div>
+  </div>
+</div>

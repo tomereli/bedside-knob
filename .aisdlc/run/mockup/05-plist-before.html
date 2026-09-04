@@ -1,0 +1,32 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>05 — the playlist sub-page as it ships today</title>
+<link rel="stylesheet" href="face.css">
+<div class="wrap">
+  <h1>05 — The playlist sub-page today. This name has not moved in ten days.</h1>
+  <p class="note">Drawn from <code>firmware/bedside-knob.yaml</code> lines 1990–2046.
+  <code>input_select.bedroom_playlist</code> holds exactly one state record across ten days
+  of recorder history: <code>Liked Songs</code>, last changed 2026-08-31 08:20:40 +03:00.
+  Every turn on this page has left the selection untouched, so of the five options only the
+  one already selected has ever been reachable.</p>
+
+  <div class="stage">
+    <div class="face">
+      <div class="slot hot" style="top:70px;font-size:44px;line-height:44px"><i class="mdi mdi-playlist-music"></i></div>
+      <div class="slot f18 ls3 dim" style="top:114px">PLAYLIST</div>
+      <div class="slot f28 hot clip300" style="top:168px">Liked Songs</div>
+      <div class="slot f18 dim" style="top:214px">TAP TO PLAY</div>
+      <div class="btn d66 back" style="left:147px;top:251px"><i class="mdi mdi-arrow-left"></i></div>
+    </div>
+    <div class="cap">
+      <p class="t">Five options exist. One is reachable.</p>
+      <p class="d">The other four — <code>KPop Demon Hunters</code>,
+      <code>Lullaby Ocean</code>, <code>Muskoka</code>, <code>Amazing Music</code> — each have
+      a valid URI in <code>script.play_playlist_by_name</code> and none of them can be got to
+      from the knob.</p>
+      <p class="d">The tap plays, at any hour, at whatever volume was left behind.</p>
+      <p class="g">Because this page has never worked, no muscle memory attaches to it. That
+      is what makes it free to move the BACK button off centre on the next screen.</p>
+    </div>
+  </div>
+</div>

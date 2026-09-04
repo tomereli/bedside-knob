@@ -1,0 +1,37 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>06 — the playlist sub-page, walking</title>
+<link rel="stylesheet" href="face.css">
+<div class="wrap">
+  <h1>06 — Three detents anticlockwise from Liked Songs</h1>
+  <p class="note">The walk works: one detent, one option, wrapping, straight off
+  <code>input_select.select_next</code> and <code>select_previous</code> with no local copy of
+  the list anywhere on the device. Five detents one way returns to where it started, having
+  shown all five.</p>
+
+  <div class="stage">
+    <div class="face">
+      <div class="slot hot" style="top:70px;font-size:44px;line-height:44px"><i class="mdi mdi-playlist-music"></i></div>
+      <div class="slot f18 ls3 dim" style="top:114px">PLAYLIST</div>
+      <div class="slot f28 hot clip300" style="top:168px">Lullaby Ocean</div>
+      <div class="slot f18 dim" style="top:214px">TAP TO PLAY</div>
+      <div class="btn d66 back" style="left:103px;top:251px"><i class="mdi mdi-arrow-left"></i></div>
+      <div class="btn d66" style="left:191px;top:251px"><i class="mdi mdi-play"></i></div>
+    </div>
+    <div class="cap">
+      <p class="t">A play control, beside BACK, at <code>x: ±44, y: 104</code>.</p>
+      <p class="d">It earns its place for one reason: <b>the confirm gesture needs a target a
+      palm cannot land on.</b> A hold of the open face already means BACK on this page and
+      keeps meaning it, so the night confirm needs a button of its own — and the same one, in
+      the same words, as the MUSIC card.</p>
+      <p class="d">In daylight it is a second, harmless way to do what the face tap already
+      does. Two ways to start is already this file's idiom: the MUSIC card has both a play
+      button and a face hold.</p>
+      <p class="d">Both buttons stay 66 px. There are only two of them, and the worst corner
+      sits at r = 157, well inside the 172 px safe radius.</p>
+      <p class="g">The five names, verbatim from Home Assistant: Liked Songs, KPop Demon
+      Hunters, Lullaby Ocean, Muskoka, Amazing Music. Adding, renaming or reordering them is
+      an <code>input_select</code> edit and needs no reflash.</p>
+    </div>
+  </div>
+</div>
