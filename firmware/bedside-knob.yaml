@@ -64,6 +64,12 @@ substitutions:
   read_m_ent: switch.khdr_shynh_rshy_kh_shynh_qryh_shml
   music_ent:  media_player.master_bedroom_master_bedroom_wiim
   plist_ent:  input_select.bedroom_playlist
+  # Joins or unjoins the master bathroom to whatever the bedroom is playing.
+  # A script, not media_player.join directly: group_members is a LIST, and
+  # ESPHome sends every value in a data: block as a string, which Home
+  # Assistant refuses with a 400 and no log entry anywhere.
+  bathjoin:   script.master_bath_music_toggle
+  bathmp:     media_player.master_bathroom_master_bathroom_wiim
   closet_sw:  switch.khdr_shynh_rshy_khdr_rvnvt
   bath_sw:    switch.khdr_rkhtsh_rshy_kh_rkhtsh_rshy_ml
   # Tomer's bedside Vitrea panel (N15).
@@ -593,6 +599,14 @@ text_sensor:
       - script.execute: paint_music
 
   - platform: homeassistant
+    id: ha_grp
+    entity_id: ${music_ent}
+    attribute: group_members
+    internal: true
+    on_value:
+      - script.execute: paint_music
+
+  - platform: homeassistant
     id: ha_plist
     entity_id: ${plist_ent}
     internal: true
@@ -925,10 +939,21 @@ script:
       - lvgl.label.update:
           id: sub_mus
           text: !lambda |-
-            if (id(ha_music_st).state == "playing") { return "PLAYING"; }
-            if (id(ha_music_st).state == "paused") { return "PAUSED"; }
-            if (id(ha_music_st).state == "idle") { return "IDLE"; }
+            // group_members arrives as the printed list, so a substring test is
+            // what there is; the entity id is unique enough for it to be safe.
+            bool bath = id(ha_grp).state.find("master_bathroom") != std::string::npos;
+            if (id(ha_music_st).state == "playing") { return bath ? "PLAYING + BATH" : "PLAYING"; }
+            if (id(ha_music_st).state == "paused") { return bath ? "PAUSED + BATH" : "PAUSED"; }
+            if (id(ha_music_st).state == "idle") { return bath ? "IDLE + BATH" : "IDLE"; }
             return "";
+      - lvgl.widget.update:
+          id: btn_bath
+          bg_color: !lambda |-
+            return lv_color_hex(id(ha_grp).state.find("master_bathroom") != std::string::npos
+                                ? 0x5A2A3A : 0x2A141C);
+          border_color: !lambda |-
+            return lv_color_hex(id(ha_grp).state.find("master_bathroom") != std::string::npos
+                                ? 0xF06292 : 0x4A2432);
       - lvgl.arc.update:
           id: arc_mus
           value: !lambda 'return id(vol_pct);'
@@ -2069,11 +2094,11 @@ lvgl:
             y: -6
         - button:
             align: CENTER
-            x: -78
+            x: -102
             y: 70
-            width: 66
-            height: 66
-            radius: 33
+            width: 60
+            height: 60
+            radius: 30
             bg_color: 0x2A141C
             border_width: 3
             border_color: 0x4A2432
@@ -2096,11 +2121,11 @@ lvgl:
                   align: CENTER
         - button:
             align: CENTER
-            x: 0
+            x: -34
             y: 70
-            width: 66
-            height: 66
-            radius: 33
+            width: 60
+            height: 60
+            radius: 30
             bg_color: 0x2A141C
             border_width: 3
             border_color: 0x4A2432
@@ -2125,11 +2150,11 @@ lvgl:
                   align: CENTER
         - button:
             align: CENTER
-            x: 78
+            x: 34
             y: 70
-            width: 66
-            height: 66
-            radius: 33
+            width: 60
+            height: 60
+            radius: 30
             bg_color: 0x2A141C
             border_width: 3
             border_color: 0x4A2432
@@ -2149,6 +2174,39 @@ lvgl:
             widgets:
               - label:
                   text: "󰒭"
+                  text_font: mdi_44
+                  text_color: 0xF06292
+                  align: CENTER
+        # Two rooms, never the house. Lit border when the bathroom is in the
+        # group; the shower glyph is the one the BATH card already uses, so no
+        # new codepoint has to be built into the font.
+        - button:
+            id: btn_bath
+            align: CENTER
+            x: 102
+            y: 70
+            width: 60
+            height: 60
+            radius: 30
+            bg_color: 0x2A141C
+            border_width: 3
+            border_color: 0x4A2432
+            on_short_click:
+              - script.execute: screentime
+              - if:
+                  condition:
+                    lambda: 'return millis() - id(wake_ms) > $wake_guard_ms;'
+                  then:
+                    - script.execute:
+                        id: haptic
+                        effect: ${fx_set}
+                    - homeassistant.action:
+                        action: script.turn_on
+                        data:
+                          entity_id: ${bathjoin}
+            widgets:
+              - label:
+                  text: "󰦡"
                   text_font: mdi_44
                   text_color: 0xF06292
                   align: CENTER
