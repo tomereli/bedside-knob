@@ -1091,13 +1091,11 @@ script:
                             action: input_select.select_next
                             data:
                               entity_id: ${plist_ent}
-                              cycle: "true"
                       else:
                         - homeassistant.action:
                             action: input_select.select_previous
                             data:
                               entity_id: ${plist_ent}
-                              cycle: "true"
                 else:
                   - lambda: 'id(ui_page) = (id(ui_page) + delta + 7) % 7;'
                   - script.execute: show_page
