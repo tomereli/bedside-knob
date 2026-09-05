@@ -598,6 +598,18 @@ text_sensor:
     on_value:
       - script.execute: paint_music
 
+  # LinkPlay reports the live source here. It is not a selectable input -
+  # source_list holds only Bluetooth / Line In / Optical In / TV / Music
+  # Assistant Queue - so an AirPlay stream shows up as a source the list
+  # never offered.
+  - platform: homeassistant
+    id: ha_src
+    entity_id: ${music_ent}
+    attribute: source
+    internal: true
+    on_value:
+      - script.execute: paint_music
+
   - platform: homeassistant
     id: ha_grp
     entity_id: ${music_ent}
@@ -942,18 +954,31 @@ script:
             // group_members arrives as the printed list, so a substring test is
             // what there is; the entity id is unique enough for it to be safe.
             bool bath = id(ha_grp).state.find("master_bathroom") != std::string::npos;
-            if (id(ha_music_st).state == "playing") { return bath ? "PLAYING + BATH" : "PLAYING"; }
-            if (id(ha_music_st).state == "paused") { return bath ? "PAUSED + BATH" : "PAUSED"; }
-            if (id(ha_music_st).state == "idle") { return bath ? "IDLE + BATH" : "IDLE"; }
-            return "";
+            bool ma   = id(ha_src).state == "Music Assistant Queue";
+            std::string st;
+            if (id(ha_music_st).state == "playing") st = "PLAYING";
+            else if (id(ha_music_st).state == "paused") st = "PAUSED";
+            else if (id(ha_music_st).state == "idle") st = "IDLE";
+            else return std::string("");
+            // A standing group has to be visible here rather than discovered
+            // later from the phone, which by then cannot undo it.
+            if (bath) return st + " + BATH";
+            // Naming the source explains the dimmed button without a prompt.
+            if (!ma) return st + " · AIRPLAY";
+            return st;
+      # Three states, because the button has three: joined, joinable, and not
+      # joinable. Dimming it while the bedroom is on AirPlay says so before the
+      # press rather than swallowing it afterwards.
       - lvgl.widget.update:
           id: btn_bath
           bg_color: !lambda |-
-            return lv_color_hex(id(ha_grp).state.find("master_bathroom") != std::string::npos
-                                ? 0x5A2A3A : 0x2A141C);
+            bool bath = id(ha_grp).state.find("master_bathroom") != std::string::npos;
+            bool ma   = id(ha_src).state == "Music Assistant Queue";
+            return lv_color_hex(bath ? 0x5A2A3A : (ma ? 0x2A141C : 0x1A1013));
           border_color: !lambda |-
-            return lv_color_hex(id(ha_grp).state.find("master_bathroom") != std::string::npos
-                                ? 0xF06292 : 0x4A2432);
+            bool bath = id(ha_grp).state.find("master_bathroom") != std::string::npos;
+            bool ma   = id(ha_src).state == "Music Assistant Queue";
+            return lv_color_hex(bath ? 0xF06292 : (ma ? 0x4A2432 : 0x2A1A20));
       - lvgl.arc.update:
           id: arc_mus
           value: !lambda 'return id(vol_pct);'
@@ -2197,13 +2222,27 @@ lvgl:
                   condition:
                     lambda: 'return millis() - id(wake_ms) > $wake_guard_ms;'
                   then:
-                    - script.execute:
-                        id: haptic
-                        effect: ${fx_set}
-                    - homeassistant.action:
-                        action: script.turn_on
-                        data:
-                          entity_id: ${bathjoin}
+                    - if:
+                        condition:
+                          # Leaving is always allowed - it is the only way out of
+                          # a hardware group, and it is needed most when the
+                          # source is AirPlay. Joining only on the Music
+                          # Assistant path, so every other source fails closed.
+                          lambda: |-
+                            bool grouped = id(ha_grp).state.find("master_bathroom") != std::string::npos;
+                            return grouped || id(ha_src).state == "Music Assistant Queue";
+                        then:
+                          - script.execute:
+                              id: haptic
+                              effect: ${fx_set}
+                          - homeassistant.action:
+                              action: script.turn_on
+                              data:
+                                entity_id: ${bathjoin}
+                        else:
+                          - script.execute:
+                              id: haptic
+                              effect: ${fx_refuse}
             widgets:
               - label:
                   text: "󰦡"
