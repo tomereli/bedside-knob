@@ -68,7 +68,7 @@ substitutions:
   # A script, not media_player.join directly: group_members is a LIST, and
   # ESPHome sends every value in a data: block as a string, which Home
   # Assistant refuses with a 400 and no log entry anywhere.
-  bathjoin:   script.master_bath_music_toggle
+  bathjoin:   script.master_bath_join_bedroom
   bathmp:     media_player.master_bathroom_master_bathroom_wiim
   closet_sw:  switch.khdr_shynh_rshy_khdr_rvnvt
   bath_sw:    switch.khdr_rkhtsh_rshy_kh_rkhtsh_rshy_ml
