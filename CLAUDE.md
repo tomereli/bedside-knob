@@ -60,3 +60,20 @@ not transfer:
 `tomereli/aisdlc` — the pipeline, its roles, and how the gates work.
 `tomereli/coffee-knob` — the previous device, including what its
 integration with Home Assistant already solved.
+
+## Saying a task is finished
+
+Every "done" ends with the same four facts, short, at the end of the message:
+the **release**, the **diff** since the previous one, **what ran**, and
+**whether anything opened the running thing after the deploy**.
+
+The last is the one he asked for by name and the one usually missing. Four
+health-mcp deploys went out with every server check green while the app would
+not open on his phone: healthz cannot know that the page never rendered.
+"Tests passed" and "it works" are different claims. If nothing opened it, say
+that rather than leaving the line out.
+
+Generate it rather than typing it - a hand-written footer carries a stale sha
+eventually, and its whole value is that he can trust it without checking.
+`health-mcp/ops/shipped.py` is the working one; this repository owes the same
+four facts whether or not it has a copy yet.
