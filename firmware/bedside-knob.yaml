@@ -709,6 +709,14 @@ script:
             return id(ha_goodnight).state == "on" ? 0.25f : 0.85f;
       - script.execute: show_page
       - delay: ${screen_timeout}
+      - script.execute: go_idle
+
+  # Where the knob rests: the clock face, dim, with nothing open. Reached by
+  # the idle timer above and by tapping the clock chip, which is why it is a
+  # script and not the tail of that timer -- two callers, one definition.
+  - id: go_idle
+    mode: restart
+    then:
       - lambda: |-
           id(screen_on) = false;
           id(ui_adjust) = false;
@@ -718,6 +726,9 @@ script:
           // hole the size of the rule itself: one sleepy turn on a stale WAVE
           // selection lights the panel over a sleeping head.
           id(sel_zone) = 0;
+      # Redundant with the big face this is about to show, and it would sit
+      # above it as a second, smaller clock.
+      - lvgl.widget.hide: chip_clock
       # The clock is a mains luxury. On the cell the glass goes dark and the
       # knob is only lit when a hand is on it - the cell is a ride-through for
       # a pulled plug, and a face burning through it all night spends the one
@@ -763,6 +774,14 @@ script:
   - id: paint_clock
     mode: restart
     then:
+      - lvgl.label.update:
+          id: chip_clock
+          text: !lambda |-
+            static char b[8];
+            auto t = id(ha_time).now();
+            if (!t.is_valid()) return std::string("--:--");
+            snprintf(b, sizeof(b), "%02d:%02d", t.hour, t.minute);
+            return std::string(b);
       - lvgl.label.update:
           id: clk_time
           text: !lambda |-
@@ -1069,6 +1088,12 @@ script:
     mode: restart
     then:
       - script.execute: paint_current
+      # Every route to a card comes through here, and go_idle hid it.
+      - lvgl.widget.show: chip_clock
+      # The chip is written by the minute tick, so without this it reads
+      # --:-- until the next boundary and the first card after a boot carries
+      # a dead clock for up to a minute.
+      - script.execute: paint_clock
       - if:
           condition:
             lambda: 'return id(ui_level) == 1;'
@@ -1704,6 +1729,35 @@ lvgl:
   # USB-C end is the top when plugged in for power. mipi_spi reports hardware
   # rotation, so LVGL does this in the panel, not on the CPU.
   rotation: 180
+  top_layer:
+    widgets:
+      # The time, on every card. It was only ever on the idle face, so the
+      # one thing wanted at a glance in the dark was the one thing a card
+      # hid.
+      #
+      # y -140 is the only band free on all eight cards, measured rather
+      # than eyeballed: the highest card content anywhere is the LIGHTS and
+      # SCENES titles at -126, so an 18px row at -149..-131 clears them by
+      # 5px, and the chord is 172px where the text is 56px.
+      #
+      # Tapping it is the way out. A card's own tap and hold are both spoken
+      # for -- hold powers the AC, plays music, refuses on the panels -- so
+      # there was no free gesture, and a hidden one would have needed
+      # learning anyway. This is a visible target, and it goes where the
+      # idle timer was going to go regardless.
+      - label:
+          id: chip_clock
+          text: "--:--"
+          text_font: label_18
+          text_color: 0x4A4A4A
+          align: CENTER
+          y: -140
+          clickable: true
+          on_short_click:
+            - script.execute:
+                id: haptic
+                effect: ${fx_out}
+            - script.execute: go_idle
   pages:
     # ---------------- AC - cold blue ----------------
     - id: page_ac
