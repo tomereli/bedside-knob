@@ -432,6 +432,19 @@ sensor:
           min_value: 0
           max_value: 100
 
+  # Signal strength, in dBm rather than as a bar count, because a thinning
+  # margin is the part that predicts the next dropout. The coffee knob got
+  # this sensor first and reported -86 on its first reading, which is the
+  # edge of usable and explains an outage that had until then looked random.
+  # This one exists to say whether that is the kitchen or the whole house.
+  - platform: wifi_signal
+    id: rssi
+    name: "WiFi Signal"
+    entity_category: diagnostic
+    update_interval: 30s
+    on_value:
+      - script.execute: paint_clock
+
   - platform: homeassistant
     id: ha_ac_target
     entity_id: ${ac_ent}
@@ -804,6 +817,70 @@ script:
             if (!t.is_valid()) return 0;
             int p = t.minute % 4;
             return (p == 2) ? 7 : (p == 0) ? -7 : 0;
+      # Wifi before HA: wifi down takes HA with it, so reporting HA first
+      # names the symptom and hides the cause.
+      - if:
+          condition:
+            not:
+              wifi.connected:
+          then:
+            - lvgl.label.update:
+                id: clk_net
+                text: "NO WIFI"
+                text_color: 0xE06A6A
+          else:
+            - if:
+                condition:
+                  not:
+                    api.connected:
+                then:
+                  - lvgl.label.update:
+                      id: clk_net
+                      text: "NO HA"
+                      text_color: 0xD8A657
+                else:
+                  - lvgl.label.update:
+                      id: clk_net
+                      text: !lambda |-
+                        static char b[8];
+                        float r = id(rssi).state;
+                        if (std::isnan(r)) return std::string("WIFI");
+                        snprintf(b, sizeof(b), "%d", (int) lroundf(r));
+                        return std::string(b);
+                      text_color: !lambda |-
+                        float r = id(rssi).state;
+                        return (!std::isnan(r) && r < -75.0f)
+                                 ? lv_color_hex(0xD8A657) : lv_color_hex(0x4A4A4A);
+      # Which rail, never a guess at charge state: no charge-status line is
+      # broken out to any GPIO on this board, so charging is not observable
+      # and a full cell on USB is indistinguishable from none. Unlike the
+      # coffee knob a cell IS fitted here -- pulling the plug drops this rail
+      # from 4.75 to 4.14 V with the device still on the network -- so the
+      # percentage branch is the one that will actually be seen.
+      #
+      # 4.4 V is the same threshold this face already uses to decide whether
+      # to light at all, kept as one number rather than two.
+      - if:
+          condition:
+            lambda: 'return std::isnan(id(vbat).state) || id(vbat).state > 4.4f;'
+          then:
+            - lvgl.label.update:
+                id: clk_pwr
+                text: "USB"
+                text_color: 0x4A4A4A
+          else:
+            - lvgl.label.update:
+                id: clk_pwr
+                text: !lambda |-
+                  static char b[8];
+                  float p = id(batt_level).state;
+                  if (std::isnan(p)) return std::string("BATT");
+                  snprintf(b, sizeof(b), "%d%%", (int) lroundf(p));
+                  return std::string(b);
+                text_color: !lambda |-
+                  float p = id(batt_level).state;
+                  return (!std::isnan(p) && p < 20.0f)
+                           ? lv_color_hex(0xE06A6A) : lv_color_hex(0xD8A657);
       # Nothing when the link is up: the absence of a mark is the good state.
       # Asked of the API server itself rather than tracked in a global: the
       # disconnect event fires for any client, so an OTA or a log session
@@ -1748,10 +1825,15 @@ lvgl:
       - label:
           id: chip_clock
           text: "--:--"
-          text_font: label_18
+          # 16px at y -144, which is 4px clear of the LIGHTS and SCENES
+          # titles below and 5px inside the cards' perimeter arc above. 18px
+          # at -140 overlapped those titles by a pixel; both numbers came
+          # from a checker that was reading every font on this device as
+          # 16px, so the clearance it reported was not the clearance.
+          text_font: montserrat_16
           text_color: 0x4A4A4A
           align: CENTER
-          y: -140
+          y: -144
           clickable: true
           on_short_click:
             - script.execute:
@@ -2475,3 +2557,31 @@ lvgl:
             text_color: 0x7A3B3B
             align: CENTER
             y: 92
+        # The link margin and the rail, on the face that is lit all night.
+        # They live here rather than on the cards because the cards have no
+        # room for them: measured across all eight, the only band clear of
+        # content is the one the clock chip already occupies, page_plist's
+        # button reaches y+137, and every card but two carries a full
+        # perimeter arc that any bottom row would cross.
+        #
+        # clk_link already marks a dead HA link. These two say which link and
+        # how close the good one is to going, which the icon cannot.
+        - label:
+            id: clk_net
+            text: ""
+            text_font: label_18
+            text_color: 0x4A4A4A
+            align: CENTER
+            x: -50
+            # 50, not 44: the big clock walks +-7px to spread its burn-in, so
+            # its box reaches +37 rather than the +30 it occupies standing
+            # still, and 44 put this row two pixels inside that.
+            y: 50
+        - label:
+            id: clk_pwr
+            text: ""
+            text_font: label_18
+            text_color: 0x4A4A4A
+            align: CENTER
+            x: 50
+            y: 50
