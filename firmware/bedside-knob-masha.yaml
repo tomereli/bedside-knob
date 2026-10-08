@@ -1,0 +1,45 @@
+# =============================================================================
+# bedside-knob-masha - the same firmware, Masha's side of the bed.
+#
+# There is no behaviour here and there is not meant to be. Every card, every
+# gesture and every entity lives in bedside-knob.yaml and is shared; this
+# file exists only because two ESPHome devices cannot carry the same name.
+# The hostname, the mDNS record, the OTA target and the Home Assistant
+# entity_ids are all built from it, so sharing one would put the two knobs on
+# top of each other.
+#
+# The shared file is pulled in as a package and NOT edited. That is the whole
+# design: `esphome.name` is overridden from here, where a parent key beats
+# the package's, so bedside-knob.yaml stays byte-identical and Tomer's knob
+# keeps reporting the config hash it was flashed with. Threading the name
+# through a substitution instead would have changed the resolved config of
+# his device too, and a working knob would have needed a reflash to say the
+# same thing it already says.
+#
+# Both knobs ship together. A change to the shared file is deployed twice:
+#
+#     esphome run firmware/bedside-knob.yaml
+#     esphome run firmware/bedside-knob-masha.yaml
+#
+# Note what is NOT on those two lines: --device. Left off, esphome resolves
+# the OTA target from the config's own name, so a binary cannot land on the
+# other knob. Passing it by hand is the one way to push one config to the
+# other hostname, which puts both devices on the same name in mDNS and in
+# Home Assistant - the collision this file exists to prevent, arriving by a
+# different door. ops/verify.py catches it, because the hash the device
+# reports is then the other config's.
+#
+# The first flash of a new knob has to be USB - a partition table cannot be
+# applied over the air - so it takes --device COMx, and the S3 only answers
+# on one orientation of the USB-C plug. Everything after that is OTA.
+#
+# If Masha ever wants something Tomer's knob does not do, it belongs here as
+# a substitution override, not as a fork of the shared file.
+# =============================================================================
+
+esphome:
+  name: bedside-knob-masha
+  friendly_name: "Bedside Knob Masha"
+
+packages:
+  base: !include bedside-knob.yaml
